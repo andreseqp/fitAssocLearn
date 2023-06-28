@@ -40,14 +40,17 @@ prediction.ind <- data.frame(
 
 # define bayesian set-up
 bayesianSetup <- createBayesianSetup(likelihood = likelihood, 
-                                     lower = c(rep(-1,96),0,-1,-1,0),
+                                     lower = c(rep(0,96),0.01,0,0,0.0001),
                                      upper = c(rep(1,96),100,1,1,50),
                                      best = c(rep(0.1,96),10,0.1,0.11,0.5),
                                      names = c(paste0("alpha",1:96),"temp",
                                                "alpha_SB","alpha_LB","RE_sd")
                                        )
 
-settings <- list(iterations = 10000, nrChains = 1)
+settings <- list(iterations = 50000, nrChains = 1)
+
+likelihood(c(rep(0,96),0.01,0,0,00001))
+
 res <- runMCMC(bayesianSetup = bayesianSetup, settings = settings)
 
 nChains<-5
@@ -61,7 +64,6 @@ parallel::clusterEvalQ(cl, {
   library(here)
   library(data.table)
   source("RLModel.R")
-  defaultPars<-foc.param
 }
 )
 
@@ -73,7 +75,16 @@ MCMC.alphas <- parallel::parLapply(cl, 1:nChains,
 
 
 ## Combine the chains
-MCMC.alphas <- createMcmcSamplerList(MCMC.FAA)
+MCMC.alphas <- createMcmcSamplerList(MCMC.alphas)
 
 # Save files for future analysis
-saveRDS(MCMC.alphas, file= here(paste0(scenario,"_"),"MCMC_alphas.rda"))
+saveRDS(MCMC.alphas, file= here("MCMC_alphas.rda"))
+
+
+# Plot the MCMC chains ----------------------------------------------------------
+
+par()
+plot(MCMC.alphas)
+summary(MCMC.alphas)
+marginalPlot(MCMC.alphas)
+gelmanDiagnostics(MCMC.FAA.loaded)
