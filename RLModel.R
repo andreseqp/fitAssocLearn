@@ -34,15 +34,18 @@ likelihood <- function(par,sum=TRUE,seed=1){
   alpha.brain <- c(par[98],par[99])
   prediction<-
     do.call(rbind,lapply(boussard_data[,unique(tankID)],
-                         FUN =  function(ind){
-                           ind.par<-list(alpha=alpha.brain[boussard_data[tankID==ind,
-                                                                         unique(brainsize)+1]]+par[ind],
-                                         temp=par[97]) 
-                           prediction.ind <- learning(prediction_ind = prediction.ind,
-                                                      learnPar = ind.par,seed = seed)
-                           prediction.ind <- as.data.table(prediction.ind)
-                           return(prediction.ind[trial_reversal>0])
-                         }))
+       FUN =  function(ind){
+         ind.par<-list(alpha=
+                         pnorm(alpha.brain[boussard_data[tankID==ind,
+                                                       unique(brainsize)+1]]+
+                                 par[ind]),
+                       temp=exp(par[97])) 
+         # print(ind.par$alpha)
+         prediction.ind <- learning(prediction_ind = prediction.ind,
+                                    learnPar = ind.par,seed = seed)
+         prediction.ind <- as.data.table(prediction.ind)
+         return(prediction.ind[trial_reversal>0])
+       }))
   prediction[,`:=`(success=ifelse(choice==1,rew.1,rew.2),
                    prob= ChoiceSoftMax(val.1,val.2,par[97],prob=TRUE))]
   llRandom <- dnorm(par[1:96],sd = par[100],log=T)
@@ -52,6 +55,36 @@ likelihood <- function(par,sum=TRUE,seed=1){
   ifelse(sum==TRUE,return(sum(c(llRandom,llObservation))),
          return(c(llRandom,llObservation)))
 }
+
+likelihood_plain <- function(par,sum=TRUE,seed=1){
+  ## Parameters:
+  ## 1 -> temp
+  ## 2 -> overall alpha brainsize 0
+  ## 3 -> overall alpha brainsize 1
+  alpha.brain <- c(par[2],par[3])
+  prediction<-
+    do.call(rbind,lapply(boussard_data[,unique(tankID)],
+                         FUN =  function(ind){
+                           ind.par<-list(alpha=
+                                           pnorm(alpha.brain[boussard_data[tankID==ind,
+                                                                           unique(brainsize)+1]]),
+                                         temp=exp(par[1])) 
+                           # print(ind.par$alpha)
+                           prediction.ind <- learning(prediction_ind = prediction.ind,
+                                                      learnPar = ind.par,seed = seed)
+                           prediction.ind <- as.data.table(prediction.ind)
+                           return(prediction.ind[trial_reversal>0])
+                         }))
+  prediction[,`:=`(success=ifelse(choice==1,rew.1,rew.2),
+                   prob= ChoiceSoftMax(val.1,val.2,par[1],prob=TRUE))]
+  llObservation <- dbinom(boussard_data[!is.na(success),success],size=1,
+                          prob = prediction[!is.na(boussard_data$success),prob],
+                          log = TRUE)
+  ifelse(sum==TRUE,return(sum(llObservation)),
+         return(llObservation))
+}
+
+
 
 likelihood2 <- function(par,sum=TRUE){
   ## Parameters:

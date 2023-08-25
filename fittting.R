@@ -40,18 +40,32 @@ prediction.ind <- data.frame(
 
 # define bayesian set-up
 bayesianSetup <- createBayesianSetup(likelihood = likelihood, 
-                                     lower = c(rep(0,96),0.01,0,0,0.0001),
-                                     upper = c(rep(1,96),100,1,1,50),
-                                     best = c(rep(0.1,96),10,0.1,0.11,0.5),
+                                     lower = c(rep(-20,96),-20,-20,-20,0),
+                                     upper = c(rep(20,96),20,20,20,50),
+                                     best = c(rep(0,96),0,0,0,0.5),
                                      names = c(paste0("alpha",1:96),"temp",
                                                "alpha_SB","alpha_LB","RE_sd")
                                        )
 
-settings <- list(iterations = 50000, nrChains = 1)
+settings <- list(iterations = 1000, nrChains = 1, message = TRUE)
 
-likelihood(c(rep(0,96),0.01,0,0,00001))
+likelihood(c(rep(0.7,96),10,0.5,0.5,00.001))
+likelihood_plain(c(1,0.5,0.5))
 
-res <- runMCMC(bayesianSetup = bayesianSetup, settings = settings)
+res <- runMCMC(bayesianSetup = bayesianSetup, settings = settings,
+               sampler = "DREAM")
+
+pnorm(-5)
+par(mfrow=c(1,1))
+plot(res)
+summary(res)
+
+res$chain[[1]]
+
+likelihoods<-sapply(1:300, function(x){likelihood(res$codaChain[[1]][x,])})
+likelihood(as.array(res$codaChain[[3]][1,]))
+par(mfrow=c(1,1))
+plot(likelihoods)
 
 nChains<-5
 cl <- parallel::makeCluster(nChains,outfile="out")
@@ -72,6 +86,69 @@ MCMC.alphas <- parallel::parLapply(cl, 1:nChains,
                                 fun = function(X, bayesianSetup, settings) 
                                   runMCMC(bayesianSetup, settings, sampler = "DEzs"), 
                                 bayesianSetup, settings)
+
+
+## Combine the chains
+MCMC.alphas <- createMcmcSamplerList(MCMC.alphas)
+
+# Save files for future analysis
+saveRDS(MCMC.alphas, file= here("MCMC_alphas.rda"))
+
+
+# Plot the MCMC chains ----------------------------------------------------------
+
+par()
+plot(MCMC.alphas)
+summary(MCMC.alphas)
+marginalPlot(MCMC.alphas)
+gelmanDiagnostics(MCMC.FAA.loaded)
+
+## Let's try to fit a model without the hierarchical structure -----------------
+ 
+# define bayesian set-up
+bayesianSetup <- createBayesianSetup(likelihood = likelihood_plain, 
+                                     lower = c(-20,-20,-20),
+                                     upper = c(20,20,20),
+                                     best = c(0,0,0),
+                                     names = c("temp",
+                                               "alpha_SB","alpha_LB")
+)
+
+settings <- list(iterations = 1000, nrChains = 1)
+
+likelihood_plain(c(10,0.5,0.5))
+
+res <- runMCMC(bayesianSetup = bayesianSetup, settings = settings,
+               sampler = "SMC")
+
+plot(res)
+summary(res)
+
+likelihoods<-sapply(1:334, function(x){likelihood_plain(res$codaChain[[1]][x,])})
+sum(likelihoods!=res$codaChain[[1]][,5])
+likelihood(as.array(res$codaChain[[3]][1,]))
+par(mfrow=c(1,1))
+plot(likelihoods)
+
+nChains<-5
+cl <- parallel::makeCluster(nChains,outfile="out")
+parallel::clusterExport(cl,c("boussard_data",
+                             "prediction.ind")
+)
+parallel::clusterEvalQ(cl, {
+  library(BayesianTools)
+  library(Rcpp)
+  library(here)
+  library(data.table)
+  source("RLModel.R")
+}
+)
+
+## calculate parallel n chains, for each chain the likelihood will be calculated on one core
+MCMC.alphas <- parallel::parLapply(cl, 1:nChains, 
+                                   fun = function(X, bayesianSetup, settings) 
+                                     runMCMC(bayesianSetup, settings, sampler = "DEzs"), 
+                                   bayesianSetup, settings)
 
 
 ## Combine the chains
