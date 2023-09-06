@@ -23,17 +23,26 @@ parameters {
   real mu_alpha;
   real <lower=0> sigma_a;
 }
+// transformed parameters {
+//   // Transform subject-level raw parameters
+//   vector <lower=0, upper=1>[N]  alphasID_t;
+//   real tau_t;
+//   for (i in 1:N) {
+//     alphasID_t[i]  = Phi_approx(alphasT[treat_ID[i]+1] 
+//                                       + alphasID[i]);
+//   }
+//   tau_t = Phi_approx(tau)*20;
+// }
 transformed parameters {
   // Transform subject-level raw parameters
   vector <lower=0, upper=1>[N]  alphasID_t;
   real tau_t;
   for (i in 1:N) {
-    alphasID_t[i]  = Phi_approx(alphasT[treat_ID[i]+1] 
-                                      + alphasID[i]);
+    alphasID_t[i]  = inv_logit(mu_alpha + alphasT[treat_ID[i]+1] 
+                                      + sigma_a*alphasID[i]);
   }
-  tau_t = Phi_approx(tau)*20;
+  tau_t = exp(tau);
 }
-
 model {
   // Prediction error
   real pred_error;
@@ -44,11 +53,12 @@ model {
   // Hyperparameters
   mu_alpha  ~ normal(0, 1.0);
   //print("target = ", target());
-  sigma_a ~ cauchy(0, 0.5);
+  sigma_a ~ normal(0, 0.2);
   //print("target = ", target());
   
   // Individual parameters
-  alphasT  ~ normal(mu_alpha, sigma_a);
+  // alphasT  ~ normal(mu_alpha, sigma_a);
+  alphasT  ~ normal(0, 1);
   
   // group parameters
   tau ~ normal(0, 0.2);
