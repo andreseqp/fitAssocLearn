@@ -2,7 +2,7 @@ data {
   int<lower=0> N; // number of individuals 
   int<lower=0> B; // number of treatments
   int<lower=0> Tr; // number of trials in total
-  array[N,2,Tr] int <lower=0,upper=1> reward;    // Reward on each trial
+  array[N,Tr] int <lower=0,upper=1> reward;    // Reward on each trial
   array[N] int treat_ID;    // treatment ID for the second option
   array[N,Tr] int <lower=0, upper=1> y;    // choice
 }
@@ -74,9 +74,9 @@ model {
       probs[1] = 1-probs[2];
       
       // Aquí vamos arreglando problemitas
-      // choice[ind,tr]-1 ~ bernoulli(probs[2]); 
-      // pred_error = reward[ind,tr]  - est_values[choice[ind,tr]];
-      // est_values[choice[ind,tr]] += alphasID_t[ind]*pred_error;
+      choice[ind,tr]-1 ~ bernoulli(probs[2]);
+      pred_error = reward[ind,tr]  - est_values[choice[ind,tr]];
+      est_values[choice[ind,tr]] += alphasID_t[ind]*pred_error;
       
       if(block_r[tr,2]==1) { // if the second option yields reward
         // use probability of second option to calculate loglikelihood of success
