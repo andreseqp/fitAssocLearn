@@ -1,12 +1,12 @@
 ## Use stan to fit the RM model to the Boussard data
 
-
 library("shinystan") 
 library(data.table)
 library(readxl)
 library(here)
-library(dplyr)
-library(ggplot2)
+library(tidyverse)
+library(Rcpp)
+source("RLModel.R")
 here()
 
 ## Read the data 
@@ -19,43 +19,44 @@ boussard_data <-boussard_data %>% as.data.table()
 
 # Set parameters for the simulated data
 
-pars<-
+pars.gen<-list(tau=1,mu_alpha=0.2,
+               alphasT=c(-1,1),sigma_a=0.5)
 
 # set number of individuals
-Nind <- 20
+Nind <- 100
 
 # get number of treatment groups
 Ntreat <- 2
 
 # get total number of trials (including all reversals)
-Ntrials <- 50
+Ntrials <- 200
 
-setorder(boussard_data,tankID,reversal,trial)
+pars.gen$alphasID<-rnorm(Nind,pars.gen$mu_alpha,sd = pars.gen$sigma_a)
+
+pars.gen
 
 # set the treatment for all individuals
 treat_Inds <- rep(x=c(0,1),each=Nind/2)
-  # boussard_data[,unique(brainsize),by=tankID][,V1]  
 
 # set the reversal structure 
 block_r <- cbind(rep(0,Ntrials),rep(1,Ntrials))
-  
 
-# Get a unique ID for trials along the reversal blocks
-boussard_data[,trial.long:=interaction(reversal,trial)]
+# Simulate learning for all individuals
 
-# Set NA as failure to choose the rewarding option
-boussard_data[is.na(success),success:=0]
+prediction.ind <- data.frame(
+  val.1 = rep(0,dim(block_r)[1]),
+  val.2 = rep(0,dim(block_r)[1]),
+  choice = rep(0,dim(block_r)[1]),
+  rew.1 = block_r[,1],
+  rew.2 = block_r[,2],
+  success = rep(0,dim(block_r)[1])
+)
 
-# Transform the success variable, to fit stan model
-boussard_wide<-dcast(boussard_data[,.(trial.long,tankID,success)],
-                     trial.long~tankID,value.var = "success")
+sim_data <- get_sim_data(prediction.ind,pars.gen,seed = 1)
+dim(sim_data)
+mean(sim_data[,1])
 
-boussard_wide[,trial.long:=NULL]
-
-boussard_wide<-t(boussard_wide)
-
-str(boussard_wide)
-
+str(sim_data)
 # using cmdstanr
 
 library(cmdstanr)
@@ -67,18 +68,45 @@ set_cmdstan_path(stan_path)
 # Compile stan model
 boussard_RW_cmd<-cmdstan_model("boussard_RW.stan")
 
+# Simulate data using stan
+sim_data_stan <- boussard_RW_cmd$sample(list(N=Nind,B=Ntreat,Tr=Ntrials,
+                                             block_r=block_r,
+                                             treat_ID=treat_Inds,
+                                             y=sim_data),
+                                        fixed_param = TRUE,chains = 1,
+                                        iter_sampling = 1,
+                                        init=list(pars.gen))
+
+
+
+summSim<-sim_data_stan$summary()
+
+predictions <- summSim %>% filter(grepl("y_pred",variable)) %>% 
+  select(c("variable","mean")) %>% 
+  separate(variable,into=c("Individual","Trial"),sep = ",") %>% 
+  mutate(Individual=parse_number(Individual),Trial=parse_number(Trial))
+
+pred_wide<-pivot_wider(predictions,names_from = Trial,
+                       values_from = "mean") %>%
+  mutate(Individual=NULL)
+  
+
 # sample from posterior
-fit_boussard_RW_cmd <- boussard_RW_cmd$sample(list(N=Nind,B=Ntreat,Tr=Ntrials,
-                                                   block_r=block_r,
-                                                   treat_ID=treat_Inds,
-                                                   y=boussard_wide),
-                                              parallel_chains = getOption("mc.cores", 5),
-                                              chains = 5)
+fit_simulated_RW_cmd <- boussard_RW_cmd$sample(list(N=Nind,B=Ntreat,Tr=Ntrials,
+                           block_r=block_r,
+                           treat_ID=treat_Inds,
+                           y=as.matrix(pred_wide)),
+                           parallel_chains = getOption("mc.cores", 5),
+                           chains = 5,iter_sampling = 1000)
+
+# Save samples to file
+fit_simulated_RW_cmd$save_object(file = "fit_sim_stan_trials.RDS")
+
 
 # Save samples to file
 fit_boussard_RW_cmd$save_object(file = "fit_boussard_stan.RDS")
 
-fit_boussard_RW_cmd<-readRDS("fit_boussard_stan.RDS")
+fit_simulated_RW_cmd<-readRDS("fit_sim_stan_trials.RDS")
 
 # Use shinystan to evaluate the performance of the model
-launch_shinystan(fit_boussard_RW_cmd)
+launch_shinystan(fit_simulated_RW_cmd)

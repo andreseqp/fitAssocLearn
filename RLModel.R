@@ -141,8 +141,8 @@ likelihood2 <- function(par,sum=TRUE){
 
 learning<-cppFunction(
   '
-  Rcpp::DataFrame learning(Rcpp::DataFrame prediction_ind, Rcpp::List learnPar,
-    int seed=1){
+  void learning(Rcpp::DataFrame prediction_ind, 
+    Rcpp::List learnPar, int seed=1){
     Rcpp::Environment base_env("package:base");
     Rcpp::Function set_seed_r = base_env["set.seed"];
     set_seed_r(seed);  
@@ -151,31 +151,32 @@ learning<-cppFunction(
     Rcpp::NumericVector val_2 = prediction_ind["val.2"];
     Rcpp::NumericVector rew_1 = prediction_ind["rew.1"];
     Rcpp::NumericVector rew_2 = prediction_ind["rew.2"];
+    val_1.push_back(0),val_2.push_back(0);
     Rcpp::NumericVector choice;
     int  choicet0; 
     double prob;
-    for(int i = 1; i < val_1.size();++i){
-      prob = 1/(1+exp(-double(learnPar["temp"])*(val_2[i-1]-val_1[i-1])));
+    for(int i = 0; i < rew_1.size();++i){
+      prob = 1/(1+exp(-double(learnPar["temp"])*(val_2[i]-val_1[i])));
       choicet0 = R::rbinom(1,prob)+1;
       choice.push_back(choicet0); 
       if(choicet0==2) {
-        predE = rew_2[i-1] - val_2[i-1];
-        val_2[i] = val_2[i-1] + double(learnPar["alpha"])*predE;
-        val_1[i] = val_1[i-1];
+        predE = rew_2[i] - val_2[i];
+        val_2[i+1] = val_2[i] + double(learnPar["alpha"])*predE;
+        val_1[i+1] = val_1[i];
       }
       else {
-        predE = rew_1[i-1] - val_1[i-1];
-        val_1[i] = val_1[i-1] + double(learnPar["alpha"])*predE;
-        val_2[i] = val_2[i-1];
+        predE = rew_1[i] - val_1[i];
+        val_1[i+1] = val_1[i] + double(learnPar["alpha"])*predE;
+        val_2[i+1] = val_2[i];
       }
     }
-    choice.push_back(0);
+    val_1.erase(val_1.size()-1),val_2.erase(val_2.size()-1);
     prediction_ind["choice"] = choice;
     prediction_ind["val.1"] = val_1;
     prediction_ind["val.2"] = val_2;
     prediction_ind["rew.1"] = rew_1;
     prediction_ind["rew.2"] = rew_2;
-    return prediction_ind;
+    return ;
   }
   '
 )
@@ -195,11 +196,19 @@ randombinom <- cppFunction(
   '
 )
 
-randombinom(10,3)
-set.seed(3)
-as.logical(rbinom(10,1,0.5))
-
-
-
+get_sim_data<-function(prediction.ind,pars.gen,seed=0){
+  success.wide<-matrix(nrow=Nind,ncol = Ntrials)
+  for(ind in 1:Nind){
+    pars.ind<-list(alpha=pnorm(pars.gen$alphasID[ind]+
+                                 pars.gen$alphasT[treat_Inds[ind]+1]),
+                   temp=pars.gen$tau)
+    learning(prediction.ind,pars.ind,seed = seed+ind)
+    prediction.ind$success<-as.numeric(block_r[cbind(
+            seq_along(prediction.ind$choice),
+            prediction.ind$choice)]==1)
+    success.wide[ind,]<-prediction.ind$success
+  }
+  return(success.wide)
+}
 
 

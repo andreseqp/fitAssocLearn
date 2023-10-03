@@ -9,6 +9,7 @@ realSigma<-0.4
 y<-rnorm(N,realMean,realSigma)
 
 model.1<-stan_model("myfirstStan.stan")
+model.1<-cmdstan_model("myfirstStan.stan")
 
 fit.1<- sampling(model.1,list(N=N,y=y),iter=1000,chains=4)
 
