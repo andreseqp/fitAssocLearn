@@ -1,8 +1,12 @@
+// Rescola-wagner model to fit the Boussard et al data set
+// the model assumes the speed of learning (alpha) is given by a 
+// deterministic effect (brain size treatment)
+// and a random effect. The temperature (tau) is the same for all individuals
 data {
   int<lower=0> N; // number of individuals 
   int<lower=0> B; // number of treatments
   int<lower=0> Tr; // number of trials in total
-  array[N,2,Tr] int <lower=0,upper=1> reward;    // Reward on each trial
+  array[Tr,2] int <lower=0,upper=1> block_r;    // Reward on each trial
   array[N] int treat_ID;    // treatment ID for the second option
   array[N,Tr] int <lower=0, upper=1> y;    // choice
 }
@@ -54,15 +58,15 @@ model {
   // Hyperparameters
   mu_alpha  ~ normal(0, 1.0);
   //print("target = ", target());
-  sigma_a ~ normal(0, 0.2);
+  sigma_a ~ normal(0, 0.5);
   //print("target = ", target());
   
   // Individual parameters
   // alphasT  ~ normal(mu_alpha, sigma_a);
-  alphasT  ~ normal(0, 1);
-  alphasID  ~ normal(0, 1);
+  alphasT  ~ normal(0, 4);
+  alphasID  ~ normal(0, 4);
     // group parameters
-  tau ~ normal(0, 0.2);
+  tau ~ normal(0, 1);
 
   for (ind in 1:N){
     // Initialize with 0 estimated values
@@ -70,7 +74,7 @@ model {
     
     for (tr in 1:Tr){
       // Calculate probabilities based on values
-      probs[2] = inv_logit(-(est_values[2]-est_values[1])*tau_t);
+      probs[2] = inv_logit((est_values[2]-est_values[1])*tau_t);
       probs[1] = 1-probs[2];
       
       // Aquí vamos arreglando problemitas
@@ -131,7 +135,7 @@ generated quantities {
     est_values_p = initV;
     log_lik[ind] = 0;
     for (tr in 1:Tr){
-      probs_p[2] = inv_logit(-(est_values_p[2]-est_values_p[1])*tau_t);
+      probs_p[2] = inv_logit((est_values_p[2]-est_values_p[1])*tau_t);
       probs_p[1] = 1-probs_p[2];
       if(block_r[tr,2]==1) {
         log_lik[ind] += bernoulli_lpmf(y[ind, tr] | probs_p[2]);

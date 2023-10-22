@@ -6,7 +6,6 @@ library(readxl)
 library(here)
 library(tidyverse)
 library(Rcpp)
-source("RLModel.R")
 here()
 
 ## Read the data 
@@ -25,11 +24,16 @@ pars.gen<-list(tau=1,mu_alpha=0.2,
 # set number of individuals
 Nind <- 100
 
-# get number of treatment groups
+# set number of treatment groups
 Ntreat <- 2
 
+# set number of trials per reversal
+NtriRev <- 200
+
+Nrev <-1
+
 # get total number of trials (including all reversals)
-Ntrials <- 200
+Ntrials <- NtriRev*Nrev
 
 pars.gen$alphasID<-rnorm(Nind,pars.gen$mu_alpha,sd = pars.gen$sigma_a)
 
@@ -39,10 +43,14 @@ pars.gen
 treat_Inds <- rep(x=c(0,1),each=Nind/2)
 
 # set the reversal structure 
-block_r <- cbind(rep(0,Ntrials),rep(1,Ntrials))
+#block_r <- cbind(rep(0,Ntrials),rep(1,Ntrials))
+
+block_r <-cbind(c(rep(c(0,1),each=NtriRev,
+                      times=6)[1:Ntrials]),
+                c(rep(c(1,0),each=NtriRev,
+                      times=6)[1:Ntrials]))
 
 # Simulate learning for all individuals
-
 prediction.ind <- data.frame(
   val.1 = rep(0,dim(block_r)[1]),
   val.2 = rep(0,dim(block_r)[1]),
@@ -52,13 +60,7 @@ prediction.ind <- data.frame(
   success = rep(0,dim(block_r)[1])
 )
 
-sim_data <- get_sim_data(prediction.ind,pars.gen,seed = 1)
-dim(sim_data)
-mean(sim_data[,1])
-
-str(sim_data)
 # using cmdstanr
-
 library(cmdstanr)
 # Set cmdstan path 
 ## Erase to run in cluster
@@ -68,11 +70,13 @@ set_cmdstan_path(stan_path)
 # Compile stan model
 boussard_RW_cmd<-cmdstan_model("boussard_RW.stan")
 
+zeros<-matrix(data=rep(0,Nind*Ntrials),nrow = Nind,ncol = Ntrials)
+
 # Simulate data using stan
 sim_data_stan <- boussard_RW_cmd$sample(list(N=Nind,B=Ntreat,Tr=Ntrials,
                                              block_r=block_r,
                                              treat_ID=treat_Inds,
-                                             y=sim_data),
+                                             y=zeros),
                                         fixed_param = TRUE,chains = 1,
                                         iter_sampling = 1,
                                         init=list(pars.gen))
@@ -86,8 +90,10 @@ predictions <- summSim %>% filter(grepl("y_pred",variable)) %>%
   separate(variable,into=c("Individual","Trial"),sep = ",") %>% 
   mutate(Individual=parse_number(Individual),Trial=parse_number(Trial))
 
+predictions <-rename(predictions,success=mean)
+
 pred_wide<-pivot_wider(predictions,names_from = Trial,
-                       values_from = "mean") %>%
+                       values_from = "success") %>%
   mutate(Individual=NULL)
   
 

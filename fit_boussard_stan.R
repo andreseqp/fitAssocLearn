@@ -66,8 +66,10 @@ library(cmdstanr)
 stan_path <- here("..","cmdstan","cmdstan-2.32.2")
 set_cmdstan_path(stan_path)
 
-# Compile stan model
+# Compile stan model with random alpha
 boussard_RW_cmd<-cmdstan_model("boussard_RW.stan")
+
+dim(block_r)
 
 # sample from posterior
 fit_boussard_RW_cmd <- boussard_RW_cmd$sample(list(N=Nind,B=Ntreat,Tr=Ntrials,
@@ -84,6 +86,28 @@ fit_boussard_RW_cmd<-readRDS("fit_boussard_stan.RDS")
 
 # Use shinystan to evaluate the performance of the model
 launch_shinystan(fit_boussard_RW_cmd)
+
+
+# Compile stan model with random alpha and tau
+boussard_RW_2<-cmdstan_model("boussard_RW_2.stan")
+
+dim(block_r)
+
+# sample from posterior
+fit_boussard_RW_2 <- boussard_RW_2$sample(list(N=Nind,B=Ntreat,Tr=Ntrials,
+                                                   block_r=block_r,
+                                                   treat_ID=treat_Inds,
+                                                   y=boussard_wide),
+                                              parallel_chains = getOption("mc.cores", 5),
+                                              chains = 5)
+
+# Save samples to file
+fit_boussard_RW_2$save_object(file = "fit_boussard_stan_2.RDS")
+
+fit_boussard_RW_2<-readRDS("fit_boussard_stan_2.RDS")
+
+# Use shinystan to evaluate the performance of the model
+launch_shinystan(fit_boussard_RW_2)
 
 
 # fit_boussard_RW_cmd<-readRDS("MCMC_alphas.rda")

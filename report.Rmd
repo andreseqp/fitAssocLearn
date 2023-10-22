@@ -1,0 +1,407 @@
+---
+title: "Fitting associate learning models to data"
+author: "Andres Quinones"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE,}
+knitr::opts_chunk$set(echo = FALSE, message=FALSE,warning = FALSE)
+library(here)
+library(ggplot2)
+library(tidyverse)
+library(data.table)
+library(knitr)
+library(bayesplot)
+theme_set(new = theme_classic())
+```
+
+## The Boussard *et al* data set
+
+```{r plotBoussard}
+source(here("plotBoussard.R"))
+boussard_data %>% mutate(brainsize=as.factor(brainsize)) %>% 
+  ggplot(aes(y=success,x=trial,col=brainsize))+
+    stat_summary(fun = mean,geom = "point")+
+    stat_summary(fun = mean,geom = "line")+
+    # geom_point()+
+    facet_grid(brainsize~reversal)+
+    theme(legend.position = c(0.8,0.5),
+          legend.direction = "horizontal",
+          strip.text.y = element_blank())+
+    scale_x_continuous(breaks=c(1,15,30))+
+    guides(fill=guide_legend(title="Brain size"))+
+    
+    ggtitle("Repeated reversal vs brainsize")
+```
+
+## The simple fake data set 
+
+### Parameters
+
+```{r, results='asis'}
+# Set parameters for the simulated data
+
+pars.gen<-list(tau=1,mu_alpha=0.2,
+               alphasT=c(-5,5),sigma_a=0.5)
+
+# set number of individuals
+Nind <- 100
+
+# get number of treatment groups
+Ntreat <- 2
+
+# get total number of trials (including all reversals)
+Ntrials <- 200
+
+# kable(pars.gen,caption = 'Parameters of the simulated data-set.',
+#       col.names = )
+namespars<-c('Temperature','Mean speed of learning',
+                    'Treatment effects','St. dev. of speed of learning')
+
+cat(paste("*",namespars,':', pars.gen), sep = "\n")
+```
+
+
+```{r,include=FALSE,results='hide'}
+
+pars.gen$alphasID<-rnorm(Nind,pars.gen$mu_alpha,sd = pars.gen$sigma_a)
+
+
+# set the treatment for all individuals
+treat_Inds <- rep(x=c(0,1),each=Nind/2)
+
+# set the reversal structure 
+block_r <- cbind(rep(0,Ntrials),rep(1,Ntrials))
+
+# Simulate learning for all individuals
+
+prediction.ind <- data.frame(
+  val.1 = rep(0,dim(block_r)[1]),
+  val.2 = rep(0,dim(block_r)[1]),
+  choice = rep(0,dim(block_r)[1]),
+  rew.1 = block_r[,1],
+  rew.2 = block_r[,2],
+  success = rep(0,dim(block_r)[1])
+)
+
+
+library(cmdstanr)
+# Set cmdstan path 
+## Erase to run in cluster
+stan_path <- here("..","cmdstan","cmdstan-2.32.2")
+set_cmdstan_path(stan_path)
+
+# Compile stan model
+boussard_RW_cmd<-cmdstan_model("boussard_RW.stan")
+
+zeros<-matrix(data=rep(0,Nind*Ntrials),nrow = Nind,ncol = Ntrials)
+
+# Simulate data using stan
+invisible(
+  sim_data_stan <- boussard_RW_cmd$sample(list(N=Nind,B=Ntreat,Tr=Ntrials,
+                                             block_r=block_r,
+                                             treat_ID=treat_Inds,
+                                             y=zeros),
+                                        fixed_param = TRUE,chains = 1,
+                                        iter_sampling = 1,
+                                        init=list(pars.gen))
+
+)
+
+
+predictions<-sim_data_stan$summary()
+
+predictions <- predictions %>% filter(grepl("y_pred",variable)) %>% 
+  select(c("variable","mean")) %>% 
+  separate(variable,into=c("Individual","Trial"),sep = ",") %>% 
+  mutate(Individual=parse_number(Individual),Trial=parse_number(Trial))
+
+predictions <-rename(predictions,success=mean) %>%
+  bind_cols(rep(treat_Inds,Ntrials)) %>% 
+  rename(treatment=...4)
+
+
+```
+
+```{r}
+predictions %>% mutate(treatment=as.factor(treatment)) %>% 
+  ggplot(aes(y=success,x=Trial,col=treatment))+
+    stat_summary(fun = mean,geom = "point")+
+    stat_summary(fun = mean,geom = "line")+
+    facet_grid(~treatment)+
+    theme(legend.position = c(0.8,0.5),
+          legend.direction = "horizontal",
+          strip.text.y = element_blank())+
+    scale_x_continuous(breaks=c(1,100,200))+
+    guides(fill=guide_legend(title="Brain size"))+
+    ggtitle("Repeated reversal vs brainsize")
+
+```
+
+```{r,include=FALSE,results='hide'}
+pred_wide<-pivot_wider(predictions,names_from = Trial,
+                       values_from = "success") %>%
+  mutate(Individual=NULL,treatment=NULL)
+  
+
+
+# sample from posterior
+# fit_simulated_RW_cmd <- boussard_RW_cmd$sample(list(N=Nind,B=Ntreat,Tr=Ntrials,
+#                            block_r=block_r,
+#                            treat_ID=treat_Inds,
+#                            y=as.matrix(pred_wide)),
+#                            parallel_chains = getOption("mc.cores", 5),
+#                            chains = 5,iter_sampling = 1000)
+# # Save samples to file
+# fit_simulated_RW_cmd$save_object(file = "fit_sim_stan_trials.RDS")
+# 
+# 
+fit_simulated_RW_cmd<-readRDS("fit_sim_stan_trials.RDS")
+
+```
+
+
+```{r,fig.cap='Estimatation of the paramerers used to generate the simulated data. Red points correspond to the real values of the parameteres.'}
+
+pars2plot <- c("tau", "mu_alpha", "alphasT[1]", "alphasT[2]",
+                "sigma_a")
+pars2plot2 <- c("tau", "mu_alpha", "alphasT",
+                "sigma_a")
+
+posteriors<-fit_simulated_RW_cmd$draws(
+  variables = pars2plot)
+
+realVals <- tibble(parameters=pars2plot,
+                   values=as.numeric(flatten(pars.gen[pars2plot2])))
+
+mcmc_intervals(posteriors)  +
+  geom_point(data=realVals,aes(x=values,y=parameters),colour='red',size=2)
+  
+
+
+```
+
+
+```{r}
+
+preds <- fit_simulated_RW_cmd$draws(variables = "y_pred")
+
+preds_df <- posterior::as_draws_df(preds)
+
+names(preds_df)[grep("y_pred",names(preds_df),invert = TRUE)]
+
+preds_long <- melt(preds_df,id=c('.chain','.iteration'),
+                   measure.vars=grep("y_pred",colnames(preds_df)))
+
+preds_long <- as.data.table(preds_long)
+
+preds_long[,c("individual","trial"):=tstrsplit(variable,",")]
+
+preds_long[,`:=`(individual=parse_number(individual),
+                 trial=parse_number(trial))]
+preds_long[,variable:=NULL]
+
+preds_long[,treatment:=as.factor(ifelse(individual<50,0,1))]
+
+# Average over de MCMC samples
+mean_ind <- preds_long[,mean(value),by=.(.chain,.iteration,treatment,trial)]
+
+
+# predictions %>% mutate(treatment=as.factor(treatment)) %>% 
+#   ggplot(aes(y=success,x=Trial,col=treatment))+
+#     stat_summary(fun = mean,geom = "point")+
+#     stat_summary(fun = mean,geom = "line")+
+#     stat_summary(data=mean_ind,fun = 
+#                  aes(y=V1,x=trial,col=treatment),
+#                  geom = "ribbon")+
+#     facet_grid(~treatment)+
+#     theme(legend.position = c(0.8,0.5),
+#           legend.direction = "horizontal",
+#           strip.text.y = element_blank())+
+#     scale_x_continuous(breaks=c(1,100,200))+
+#     guides(fill=guide_legend(title="Brain size"))+
+#     ggtitle("Repeated reversal vs brainsize")
+
+quantile(rnorm(2000),0.05)
+
+ggplot(mean_ind,aes(x=trial,y=V1,col=treatment))+
+  stat_summary(geom="ribbon",alpha = 0.2,fun.max = function(x){
+    quantile(x,0.95)},
+    fun.min = function(x){
+    quantile(x,0.05)},colour=NA)+
+  stat_summary(geom="ribbon",alpha = 0.5,fun.max = function(x){
+    quantile(x,0.75)},
+    fun.min = function(x){
+    quantile(x,0.25)},colour=NA)+
+  stat_summary(data=predictions %>% mutate(treatment=as.factor(treatment)),
+               aes(y=success,x=Trial,col=treatment),
+               fun = mean,geom = "point")+
+  facet_grid(~treatment)
+
+```
+
+## The reversal fake data set 
+
+### Parameters
+
+```{r, results='asis'}
+# Set parameters for the simulated data
+
+pars.gen<-list(tau=1,mu_alpha=0.2,
+               alphasT=c(-2,2),sigma_a=0.5)
+
+# set number of individuals
+Nind <- 96
+
+# set number of treatment groups
+Ntreat <- 2
+
+# set number of trials per reversal
+NtriRev <- 30
+
+Nrev <-11
+
+# get total number of trials (including all reversals)
+Ntrials <- NtriRev*Nrev
+
+# kable(pars.gen,caption = 'Parameters of the simulated data-set.',
+#       col.names = )
+namespars<-c('Temperature','Mean speed of learning',
+                    'Treatment effects','St. dev. of speed of learning')
+
+cat(paste("*",namespars,':', pars.gen), sep = "\n")
+```
+
+
+```{r,include=FALSE,results='hide'}
+
+pars.gen$alphasID<-rnorm(Nind,pars.gen$mu_alpha,sd = pars.gen$sigma_a)
+
+
+# set the treatment for all individuals
+treat_Inds <- rep(x=c(0,1),each=Nind/2)
+
+# set the reversal structure 
+block_r <-cbind(c(rep(c(0,1),each=NtriRev,
+                      times=6)[1:Ntrials]),
+                c(rep(c(1,0),each=NtriRev,
+                      times=6)[1:Ntrials]))
+
+# Simulate learning for all individuals
+prediction.ind <- data.frame(
+  val.1 = rep(0,dim(block_r)[1]),
+  val.2 = rep(0,dim(block_r)[1]),
+  choice = rep(0,dim(block_r)[1]),
+  rew.1 = block_r[,1],
+  rew.2 = block_r[,2],
+  success = rep(0,dim(block_r)[1])
+)
+
+library(cmdstanr)
+# Set cmdstan path 
+## Erase to run in cluster
+stan_path <- here("..","cmdstan","cmdstan-2.32.2")
+set_cmdstan_path(stan_path)
+
+# Compile stan model
+boussard_RW_cmd<-cmdstan_model("boussard_RW.stan")
+
+zeros<-matrix(data=rep(0,Nind*Ntrials),nrow = Nind,ncol = Ntrials)
+
+# Simulate data using stan
+invisible(
+  sim_data_stan <- boussard_RW_cmd$sample(list(N=Nind,B=Ntreat,Tr=Ntrials,
+                                             block_r=block_r,
+                                             treat_ID=treat_Inds,
+                                             y=zeros),
+                                        fixed_param = TRUE,chains = 1,
+                                        iter_sampling = 1,
+                                        init=list(pars.gen))
+
+)
+
+
+predictions<-sim_data_stan$summary()
+
+predictions <- predictions %>% filter(grepl("y_pred",variable)) %>% 
+  select(c("variable","mean")) %>% 
+  separate(variable,into=c("Individual","Trial"),sep = ",") %>% 
+  mutate(Individual=parse_number(Individual),Trial=parse_number(Trial))
+
+predictions <-rename(predictions,success=mean) %>%
+  bind_cols(rep(treat_Inds,Ntrials)) %>% 
+  rename(treatment=...4) %>% 
+  mutate(reversal= round(Trial/NtriRev)) %>% 
+  mutate(RTrial=Trial %% NtriRev)
+
+predictions %>% filter(reversal<2) %>% group_by(treatment,reversal,RTrial) %>% 
+  summarise(mean(success))
+
+
+```
+
+```{r}
+
+predictions %>% mutate(treatment=as.factor(treatment)) %>% 
+  ggplot(aes(y=success,x=RTrial,col=treatment))+
+    stat_summary(fun = mean,geom = "point")+
+    stat_summary(fun = mean,geom = "line")+
+    facet_grid(treatment~reversal)+
+    theme(legend.position = c(0.8,0.6),
+          legend.direction = "horizontal",
+          strip.text.y = element_blank())+
+    # scale_x_continuous(breaks=c(1,100,200))+
+    guides(fill=guide_legend(title="Brain size"))+
+    ggtitle("Repeated reversal vs brainsize")
+
+```
+
+```{r,include=FALSE,results='hide'}
+pred_wide<-pivot_wider(predictions,names_from = Trial,
+                       values_from = "success") %>%
+  mutate(Individual=NULL,treatment=NULL)
+  
+
+
+# sample from posterior
+fit_simulated_RW_cmd <- boussard_RW_cmd$sample(list(N=Nind,B=Ntreat,Tr=Ntrials,
+                           block_r=block_r,
+                           treat_ID=treat_Inds,
+                           y=as.matrix(pred_wide)),
+                           parallel_chains = getOption("mc.cores", 5),
+                           chains = 5,iter_sampling = 1000)
+# Save samples to file
+# fit_boussard_RW_cmd$save_object(file = "fit_boussard_stan.RDS")
+# 
+# 
+# fit_simulated_RW_cmd<-readRDS("fit_sim_stan_trials.RDS")
+
+```
+
+
+```{r}
+posteriors<-fit_simulated_RW_cmd$draws(
+  variables = c("tau", "mu_alpha", "alphasT[1]", "alphasT[2]",
+                "sigma_a"))
+mcmc_intervals(posteriors) 
+  
+
+```
+```{r}
+
+predictions %>% mutate(treatment=as.factor(treatment)) %>% 
+  ggplot(aes(y=success,x=Trial,col=treatment))+
+    stat_summary(fun = mean,geom = "point")+
+    stat_summary(fun = mean,geom = "line")+
+    facet_grid(~treatment)+
+    theme(legend.position = c(0.8,0.5),
+          legend.direction = "horizontal",
+          strip.text.y = element_blank())+
+    scale_x_continuous(breaks=c(1,100,200))+
+    guides(fill=guide_legend(title="Brain size"))+
+    ggtitle("Repeated reversal vs brainsize")
+
+
+```
+
