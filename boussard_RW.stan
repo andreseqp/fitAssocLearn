@@ -56,17 +56,17 @@ model {
   vector[2] est_values; 
   
   // Hyperparameters
-  mu_alpha  ~ normal(0, 1.0);
+  mu_alpha  ~ normal(0, 2);
   //print("target = ", target());
-  sigma_a ~ normal(0, 0.5);
+  sigma_a ~ normal(0, 2);
   //print("target = ", target());
   
   // Individual parameters
   // alphasT  ~ normal(mu_alpha, sigma_a);
-  alphasT  ~ normal(0, 4);
-  alphasID  ~ normal(0, 4);
+  alphasT  ~ normal(0, 2);
+  alphasID  ~ normal(0, 2);
     // group parameters
-  tau ~ normal(0, 1);
+  tau ~ normal(0, 2);
 
   for (ind in 1:N){
     // Initialize with 0 estimated values
