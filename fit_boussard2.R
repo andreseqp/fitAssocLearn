@@ -1,7 +1,9 @@
-## Fitting a RW model to the data of Boussard et al. 2020
-##  Boussard, A., S. D. Buechel, M. Amcoff, A. Kotrschal, and N. Kolm. 2020. 
-#   Brain size does not predict learning strategies in a serial reversal 
-#   learning test. The Journal of Experimental Biology 223:jeb224741.
+## Fitting a RW model to the data of Boussard et al. 2021
+#  Boussard, A., M. Amcoff, S. D. Buechel, A. Kotrschal, and N. Kolm. 2021. 
+#  The link between relative brain size and cognitive ageing in female guppies 
+# (Poecilia reticulata) artificially selected for variation in brain size. 
+#  Experimental Gerontology 146:111218.
+
 
 ## Import important packages
 
@@ -10,7 +12,10 @@ library(readxl)
 library(here)
 library(dplyr)
 library(ggplot2)
-
+library(bayesplot)
+library(shinystan)
+library(stringi)
+library(tidyverse)
 ## Read the data 
 
 boussard2_data <- read_excel(here("data","boussard2",
@@ -30,13 +35,24 @@ boussard2_data_b <- read_excel(here("data","boussard2",
 
 boussard2_data_b <- boussard2_data_b %>% mutate(reversal=1)
 
-boussard2_data[,unique(tankID)] %>% length()
+boussard2_data <- as.data.table(boussard2_data)
+
+boussard2_data_b <- as.data.table(boussard2_data_b)
+
+boussard2_data$tankID %>% unique() %>% length()
+
+boussard2_data <-boussard2_data[tankID!="57"]
+
+boussard2_data_b$tankID %>% unique() %>% length()
 
 boussard2_data <- rbind(boussard2_data,boussard2_data_b) 
 
-boussard2_data$tankID %>% unique() %>% length()
-boussard2_data_b$tankID %>% unique() %>% length()
+boussard2_data[,unique(brainsize)]
+boussard2_data[,unique(age)]
 
+boussard2_data[,age.int:=lapply(age,function(x){
+  switch(x,young=1,middle=2,old=3)})]
+boussard2_data[,brainsize:=brainsize+1]
 
 # tankID coincides with the number of fish supposedly tested in the experimental 
 # set up
@@ -52,7 +68,13 @@ table(boussard2_data[,c("fishID","replicate","tankID")])
 Nind <- boussard2_data[,tankID] %>% unique() %>% length()
 
 # get number of treatment groups
-Ntreat <- boussard2_data[,brainsize] %>% unique() %>% length()
+Ntreat <- 2
+
+# get the number of treatment groups for all treatments
+NtreatEff<- boussard2_data[,lapply(.SD,function(x){
+  unique(x) %>% length()}),.SDcols = c("brainsize","age")] %>% as.numeric()
+  
+
 
 # get total number of trials (including all reversals)
 Ntrials <- boussard2_data[,interaction(trial,reversal)] %>%
@@ -64,44 +86,55 @@ Nrev <- boussard2_data[,reversal] %>%
 setorder(boussard2_data,tankID,reversal,trial)
 
 # get the treatment for all individuals
-treat_Inds <- boussard2_data[,unique(brainsize),by=tankID][,V1]
+treat_Inds <- boussard2_data[,.(unique(brainsize),unique(age.int)),by=tankID] %>% 
+  as.data.table()
+treat_Inds[,tankID:=NULL]
+setnames(treat_Inds,c("V1","V2"),c("brainsize","age"))
+treat_Inds <- t(as.matrix(treat_Inds))
 
 # set the reversal structure
-block_r <-  do.call(rbind,lapply(1:Nind,function(x){
-              rbind(matrix(rep(c(0,1),each=24),nrow = 24),
+block_r <-  rbind(matrix(rep(c(0,1),each=24),nrow = 24),
                     matrix(rep(c(1,0),each=42),ncol = 2))
-            }))        
-# length of the reward block does not fit the dataset
-dim(block_r)[1]-
-dim(boussard2_data)[1]
+            
+# do.call(rbind,lapply(1:Nind,function(x){
+#   rbind(matrix(rep(c(0,1),each=24),nrow = 24),
+#         matrix(rep(c(1,0),each=42),ncol = 2))
+# }))        
+
 
 # tankID 57 does not have reversal. 
 # What shall we do about this??
+# For now I will delete individual (tankID) 57
 
-
+boussard2_data[,trial.long:=reversal*24+trial]
+  
+# Get a unique ID for trials along the reversal blocks
 boussard2_data[,interaction(trial.long,tankID)] %>%
   unique() %>% length()
 
 boussard2_data[,unique(trial)]
-boussard2_data[,max(trial),by=.(tankID,reversal)]
-
-table(boussard2_data[,c("tankID","trial.long")])
-
-# Get a unique ID for trials along the reversal blocks
-boussard2_data[,trial.long:=interaction(reversal,trial)]
-boussard2_data[,trial.long.num:]
 
 # Set NA as failure to choose the rewarding option
-boussard2_data[,sum(is.na(success))]
+boussard2_data[is.na(success),sum(is.na(success))]
+boussard2_data[is.na(success),success:=0]
+
+# There is a data point wrongly typed. 
+# I will set it to 1
+boussard2_data[success==9,]
+boussard2_data[success==9,success:=1]
+
 
 # Transform the success variable, to fit stan model
-boussard_wide<-dcast(boussard_data[,.(trial.long,tankID,success)],
+boussard2_wide<-dcast(boussard2_data[,.(trial.long,tankID,success)],
                      trial.long~tankID,value.var = "success")
 
-boussard_wide[,trial.long:=NULL]
+treatAssign <- boussard2_data[,max(brainsize),by=tankID]
+treatAssign[,ind:=1:287]
+setnames(treatAssign,c("tankID","V1","ind"),c("tankID","brainsize","ind"))
 
-boussard_wide<-t(boussard_wide)
+boussard2_wide[,trial.long:=NULL]
 
+boussard2_wide<-t(boussard2_wide)
 
 # using cmdstanr
 
@@ -110,6 +143,103 @@ library(cmdstanr)
 ## Erase to run in cluster
 stan_path <- here("..","cmdstan","cmdstan-2.32.2")
 set_cmdstan_path(stan_path)
+
+## Let's first fit a simple RW model
+# Compile stan model with different random alpha for each reversal
+boussard_RW_2treat<-cmdstan_model("stanModels/boussard_RW_2_treat.stan")
+
+
+# sample from posterior
+fit_boussard_RW_2treat <- boussard_RW_2treat$sample(list(N=Nind,B=Ntreat,
+                                       BE= NtreatEff,
+                                       Tr=Ntrials,
+                                       block_r=block_r,
+                                       treat_ID=treat_Inds,
+                                       y=boussard2_wide),
+                                    parallel_chains = getOption("mc.cores", 5),
+                                    chains = 5)
+
+# Save samples to file
+fit_boussard_RW$save_object(file = "fit_boussard2_stan.RDS")
+
+fit_boussard_RW<-readRDS("fit_boussard_stan.RDS")
+
+# Use shinystan to evaluate the performance of the model
+launch_shinystan(fit_boussard_RW)
+
+
+pars2plot <- c("tau", "mu_alpha", "alphasT[1]", "alphasT[2]",
+                "sigma_a")
+
+posteriors<-fit_boussard_RW$draws(
+  variables = pars2plot)
+
+mcmc_intervals(posteriors)  
+
+preds <- fit_boussard_RW$draws(variables = "y_pred")
+
+preds_df <- posterior::as_draws_df(preds)
+
+preds_long <- reshape2::melt(preds_df,id=c('.chain','.iteration'),
+                   measure.vars=grep("y_pred",colnames(preds_df)))
+
+rm(list=c("preds","preds_df"))
+
+# preds_long <- preds_long %>% filter(.chain<2)
+# preds_long <- as.data.table(preds_long)
+
+preds_long <- as.data.table(preds_long)
+
+preds_long[,c("individual","trial"):=tstrsplit(variable,",")]
+
+preds_long[,variable:=NULL]
+
+preds_long[,`:=`(individual=parse_number(individual),
+                 trial=parse_number(trial))]
+
+# 
+preds_long <- preds_long[treatAssign[,.(ind,brainsize)],on=.(individual=ind)]
+
+# Average over de MCMC samples
+mean_ind <- preds_long[,mean(value),by=.(.chain,.iteration,brainsize,trial)]
+
+rm(list="preds_long")
+
+
+mean_ind <-mean_ind %>%
+  mutate(reversal= ifelse(trial>24,1,0)) %>%
+  mutate(RTrial=reversal*(-24)+trial)
+
+colnames(mean_ind) <- c("chain","iteration","brainsize","Ttrial","success",
+                        "reversal","trial")
+
+
+png("boussard_ppchecks.png")
+boussard2_data %>% mutate(brainsize=as.factor(brainsize)) %>%
+  ggplot(aes(y=success,x=trial,col=brainsize))+
+    stat_summary(fun = mean,geom = "point")+
+    stat_summary(fun = mean,geom = "line")+
+    # geom_point()+
+    theme(legend.position = c(0.8,0.5),
+          legend.direction = "horizontal",
+          strip.text.y = element_blank())+
+    guides(fill=guide_legend(title="Brain size"))+
+    ggtitle("Repeated reversal vs brainsize")+
+    facet_grid(brainsize~reversal)+
+    stat_summary(data=mean_ind,aes(x=trial,y=success,col=as.factor(brainsize)),
+                 geom="ribbon",alpha = 0.2,fun.max = function(x){
+      quantile(x,0.95)},
+      fun.min = function(x){
+      quantile(x,0.05)},colour=NA)+
+    stat_summary(data=mean_ind,aes(x=trial,y=success,col=as.factor(brainsize)),
+                 geom="ribbon",alpha = 0.5,fun.max = function(x){
+      quantile(x,0.75)},
+      fun.min = function(x){
+      quantile(x,0.25)},colour=NA)+
+    facet_grid(brainsize~reversal)
+dev.off()
+
+
 
 # Compile stan model with different random alpha for each reversal
 boussard_RW_rev<-cmdstan_model("boussard_RW_rev.stan")
