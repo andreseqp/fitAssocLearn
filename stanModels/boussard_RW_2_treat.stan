@@ -46,11 +46,12 @@ transformed parameters {
   real tmpAlphaUn = 0;
   for (i in 1:N) {
     tmpAlphaUn += mu_alpha + sigma_a*alphasID[i];
-    for (j in 0:(B-1)){
-      print(j*BE[j+1]);
-      print(treat_ID[j+1,i]);
-      tmpAlphaUn += alphasT[j*BE[j+1]+treat_ID[j+1,i]];
-    }
+    // for (j in 1:B)){
+    //   print((j-1)*BE[j]);
+    //   print(treat_ID[j+1,i]);
+    tmpAlphaUn += alphasT[treat_ID[1,i]];
+    tmpAlphaUn += alphasT[BE[1]+treat_ID[2,i]];
+    // }
     alphasID_t[i]  = inv_logit(tmpAlphaUn);
     tmpAlphaUn = 0;
   }

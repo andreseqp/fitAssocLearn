@@ -64,6 +64,29 @@
 \providecommand{\tightlist}{%
   \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
 \setcounter{secnumdepth}{-\maxdimen} % remove section numbering
+\newlength{\cslhangindent}
+\setlength{\cslhangindent}{1.5em}
+\newlength{\csllabelwidth}
+\setlength{\csllabelwidth}{3em}
+\newlength{\cslentryspacingunit} % times entry-spacing
+\setlength{\cslentryspacingunit}{\parskip}
+\newenvironment{CSLReferences}[2] % #1 hanging-ident, #2 entry spacing
+ {% don't indent paragraphs
+  \setlength{\parindent}{0pt}
+  % turn on hanging indent if param 1 is 1
+  \ifodd #1
+  \let\oldpar\par
+  \def\par{\hangindent=\cslhangindent\oldpar}
+  \fi
+  % set entry spacing
+  \setlength{\parskip}{#2\cslentryspacingunit}
+ }%
+ {}
+\usepackage{calc}
+\newcommand{\CSLBlock}[1]{#1\hfill\break}
+\newcommand{\CSLLeftMargin}[1]{\parbox[t]{\csllabelwidth}{#1}}
+\newcommand{\CSLRightInline}[1]{\parbox[t]{\linewidth - \csllabelwidth}{#1}\break}
+\newcommand{\CSLIndent}[1]{\hspace{\cslhangindent}#1}
 \usepackage{float}
 \floatplacement{figure}{H}
 \ifLuaTeX
@@ -80,7 +103,7 @@
 
 \title{Fitting associate learning models to data}
 \author{Andrés E. Quiñones}
-\date{2023-11-05}
+\date{2023-12-04}
 
 \begin{document}
 \maketitle
@@ -170,21 +193,21 @@ St.~dev. of speed of learning & 2.0 \\
 
 \begin{figure}
 
-\includegraphics{simple_DS} \hfill{}
+\includegraphics[width=6.67in,]{images/simple_DS} \hfill{}
 
 \caption{Simulated data from a simple associative learning model with two treatment effects. Points represent the frequency of successes among 50 individuals.}\label{fig:simple_dataset}
 \end{figure}
 
 \begin{figure}
 
-\includegraphics{simple_mcmc_intervals} \hfill{}
+\includegraphics[width=6.67in,]{images/simple_mcmc_intervals} \hfill{}
 
 \caption{ Estimation of the paramerters used to generate the simulated data. Blue bars and lines correspond to the 50 and 90\% credible intervals, respectively. Red points correspond to the real values of the parameteres used in the simulation.}\label{fig:est_simple}
 \end{figure}
 
 \begin{figure}
 
-\includegraphics{simple_ppchecks} \hfill{}
+\includegraphics[width=6.67in,]{images/simple_ppchecks} \hfill{}
 
 \caption{Out of sample posterior predictive checks of the bayesian estimation. Points correspond to a simulated data-set using the parameter values shown earlier. Light and dark grey bands correspond to the 50 and 90\% credible interval of predictions made from the posterior distributions.}\label{fig:ppcheck_simple}
 \end{figure}
@@ -224,21 +247,21 @@ St.~dev. of speed of learning & 0.5 \\
 
 \begin{figure}
 
-\includegraphics{reversal_data} \hfill{}
+\includegraphics[width=6.67in,]{images/reversal_data} \hfill{}
 
 \caption{Simulated data of the reversal learning model.}\label{fig:rev_sim_data}
 \end{figure}
 
 \begin{figure}
 
-\includegraphics{reversal_mcmc_interv} \hfill{}
+\includegraphics[width=6.67in,]{images/reversal_mcmc_interv} \hfill{}
 
 \caption{Estimated credible intervals and real values of the parameters of the reversal learning model. Blue bars and lines correspond to the 50 and 90\% credible intervals, respectively. Red points correspond to the real values of the parameteres used in the simulation of reversal learning. }\label{fig:rev_sim_interv}
 \end{figure}
 
 \begin{figure}
 
-\includegraphics{reversal_ppchecks} \hfill{}
+\includegraphics[width=6.67in,]{images/reversal_ppchecks} \hfill{}
 
 \caption{Out of sample posterior predictive checks of the bayesian estimation. Points correspond to a simulated data-set using the parameter values shown earlier from the simulation of reversal learning. Light and dark grey bands correspond to the 50 and 90\% credible interval}\label{fig:ppcheck_rev}
 \end{figure}
@@ -257,22 +280,22 @@ desicion-making dynamics.
 
 \begin{figure}
 
-\includegraphics{boussard_mcmc_interv} \hfill{}
+\includegraphics[width=6.67in,]{images/boussard_mcmc_interv} \hfill{}
 
-\caption{Bayesian estimation of paramteres to the Boussard *et al* data set. Light and dark grey bands correspond to the 50 and 90\% credible interval}\label{fig:boussard_interv}
+\caption{Bayesian estimation of paramteres to the Boussard *et al* 2020 data-set. Light and dark grey bands correspond to the 50 and 90\% credible interval}\label{fig:boussard_interv}
 \end{figure}
 
 \begin{figure}
 
-\includegraphics{boussard_ppchecks} \hfill{}
+\includegraphics[width=6.67in,]{images/boussard_ppchecks} \hfill{}
 
-\caption{Posterior predictive checks of the bayesian estimation. Points correspond to Boussard data-set . Light and dark grey bands correspond to the 50 and 90\% credible interval predicted by the model}\label{fig:ppchecks_boussard}
+\caption{Posterior predictive checks of the bayesian estimation. Points correspond to Boussard *et al* 2020 data-set . Light and dark grey bands correspond to the 50 and 90\% credible interval predicted by the model}\label{fig:ppchecks_boussard}
 \end{figure}
 
-\hypertarget{let-fit-a-model-with-different-learning-rates-in-reversal-blocks-to-the-boussard-et-al-data-set}{%
-\subsection{\texorpdfstring{Let' fit a model with different learning
-rates in reversal blocks to the Boussard \emph{et al} data
-set}{Let' fit a model with different learning rates in reversal blocks to the Boussard et al data set}}\label{let-fit-a-model-with-different-learning-rates-in-reversal-blocks-to-the-boussard-et-al-data-set}}
+\hypertarget{let-fit-a-model-with-different-learning-rates-in-reversal-blocks-to-the-boussard--boussard_brain_2020-data-set}{%
+\subsection{Let' fit a model with different learning rates in reversal
+blocks to the Boussard (2020) data
+set}\label{let-fit-a-model-with-different-learning-rates-in-reversal-blocks-to-the-boussard--boussard_brain_2020-data-set}}
 
 Now we use a model where we allow individuals to have a different
 \emph{speed of learning} on each reversal block. To do that, we estimate
@@ -286,16 +309,16 @@ perform rather poorly in explaining the desicion-making dynamics.
 
 \begin{figure}
 
-\includegraphics{boussard_mcmc_interv_rev} \hfill{}
+\includegraphics[width=6.67in,]{images/boussard_mcmc_interv_rev} \hfill{}
 
 \caption{Estimated credible intervals of the parameters of the reversal learning model. Blue bars and lines correspond to the 50 and 90\% credible intervals, respectively. Red points correspond to the real values of the parameteres used in the simulation of reversal learning. Panel on the right shows the estimated effect of the reversal blocks on the speed of learning.}\label{fig:interv_rev}
 \end{figure}
 
 \begin{figure}
 
-\includegraphics{boussardREV_ppchecks} \hfill{}
+\includegraphics[width=6.67in,]{images/boussardREV_ppchecks} \hfill{}
 
-\caption{Posterior predictive checks of the bayesian estimation for a model with different *speed of learning* on the reversal blocks. Points correspond to Boussard data-set. Light and dark grey bands correspond to the 50 and 90\% credible interval predicted by the model}\label{fig:ppchecks_boussard_rev}
+\caption{Posterior predictive checks of the bayesian estimation for a model with different *speed of learning* on the reversal blocks. Points correspond to Boussard  data-set. Light and dark grey bands correspond to the 50 and 90\% credible interval predicted by the model}\label{fig:ppchecks_boussard_rev}
 \end{figure}
 
 \hypertarget{the-reversal-fake-data-set-with-different-learning-rates-in-the-different-reversal-blocks}{%
@@ -336,23 +359,80 @@ Effect of reversal block 11 & -2.0 \\
 
 \begin{figure}
 
-\includegraphics{reversal_data_sim_block} \hfill{}
+\includegraphics[width=6.67in,]{images/reversal_data_sim_block} \hfill{}
 
 \caption{Simulated data of the reversal learning model.}\label{fig:rev_sim_data_block}
 \end{figure}
 
 \begin{figure}
 
-\includegraphics{sim_mcmc_interv_rev} \hfill{}
+\includegraphics[width=6.67in,]{images/sim_mcmc_interv_rev} \hfill{}
 
 \caption{Estimated credible intervals and real values of the parameters of the reversal learning model. Blue bars and lines correspond to the 50 and 90\% credible intervals, respectively. Red points correspond to the real values of the parameteres used in the simulation of reversal learning. }\label{fig:rev_sim_interv_block}
 \end{figure}
 
 \begin{figure}
 
-\includegraphics{sim_reversal_ppchecks} \hfill{}
+\includegraphics[width=6.67in,]{images/sim_reversal_ppchecks} \hfill{}
 
 \caption{Out of sample posterior predictive checks of the bayesian estimation. Points correspond to a simulated data-set using the parameter values shown earlier from the simulation of reversal learning. Light and dark grey bands correspond to the 50 and 90\% credible interval}\label{fig:ppcheck_rev_sim}
 \end{figure}
+
+\hypertarget{fitting-the-model-with-2-treatment-effects}{%
+\subsection{Fitting the model with 2 treatment
+effects}\label{fitting-the-model-with-2-treatment-effects}}
+
+\hypertarget{boussard--boussard_link_2021-brain-size-v.s.-age}{%
+\section{\texorpdfstring{Boussard (2021) brain size \emph{v.s.}
+age}{Boussard (2021) brain size v.s. age}}\label{boussard--boussard_link_2021-brain-size-v.s.-age}}
+
+As another example I show now results from fitting the model to the
+Boussard (2021) data-set. Where fish from the to brain size experimental
+groups are assessed on the effect of age in a single reversal learning
+task.
+
+\begin{figure}
+
+\includegraphics{report_files/figure-latex/unnamed-chunk-7-1} \hfill{}
+
+\caption{Performance of fish according to the two experimental groups  - brain size and age - along the initial and reversal learning}\label{fig:unnamed-chunk-7}
+\end{figure}
+
+\begin{figure}
+
+\includegraphics[width=6.67in,]{images/boussard2intervals} \hfill{}
+
+\caption{Bayesian estimation of paramteres to the Boussard *et al* 2021 data set. Light and dark grey bands correspond to the 50 and 90\% credible interval}\label{fig:unnamed-chunk-8}
+\end{figure}
+
+\begin{figure}
+
+\includegraphics[width=6.67in,]{images/boussard2_ppchecks} \hfill{}
+
+\caption{Posterior predictive checks of the bayesian estimation. Points correspond to Boussard data-set. Light and dark coloured bands correspond to the 50 and 90\% credible interval predicted by the model}\label{fig:unnamed-chunk-9}
+\end{figure}
+
+\hypertarget{references}{%
+\subsection*{References}\label{references}}
+\addcontentsline{toc}{subsection}{References}
+
+\hypertarget{refs}{}
+\begin{CSLReferences}{1}{0}
+\leavevmode\vadjust pre{\hypertarget{ref-boussard_Link_2021}{}}%
+Boussard, Annika, Mirjam Amcoff, Severine D. Buechel, Alexander
+Kotrschal, and Niclas Kolm. 2021. {``The Link Between Relative Brain
+Size and Cognitive Ageing in Female Guppies ({Poecilia} Reticulata)
+Artificially Selected for Variation in Brain Size.''} \emph{Experimental
+Gerontology} 146 (April): 111218.
+\url{https://doi.org/10.1016/j.exger.2020.111218}.
+
+\leavevmode\vadjust pre{\hypertarget{ref-boussard_Brain_2020}{}}%
+Boussard, Annika, Séverine D. Buechel, Mirjam Amcoff, Alexander
+Kotrschal, and Niclas Kolm. 2020. {``Brain Size Does Not Predict
+Learning Strategies in a Serial Reversal Learning Test.''} \emph{The
+Journal of Experimental Biology} 223 (15): jeb224741.
+\url{https://doi.org/10.1242/jeb.224741}.
+
+\end{CSLReferences}
 
 \end{document}

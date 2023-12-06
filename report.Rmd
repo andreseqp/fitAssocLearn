@@ -15,9 +15,10 @@ editor_options:
 header-includes:
   - \usepackage{float}
   - \floatplacement{figure}{H}
+bibliography: fit_assoc_learn.bib
 ---
 
-```{r setup, include=FALSE,}
+```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, message=FALSE,warning = FALSE,
                       out.extra = "",fig.align = "left")
 library(here)
@@ -63,7 +64,7 @@ boussard_data %>% mutate(brainsize=as.factor(brainsize)) %>%
     
     ggtitle("Repeated reversal vs brainsize")
 # dev.off()
-# include_graphics("boussard_data.png")
+# include_graphics("images/boussard_data.png")
 ```
 
 In order to evaluate the performance of the model in estimating the parameter values.
@@ -208,7 +209,7 @@ rm(list=c("sim_data_stan","zeros","prediction.ind"))
 #     guides(fill=guide_legend(title="Brain size"))+
 #     ggtitle("Repeated reversal vs brainsize")
 # dev.off()
-include_graphics("simple_DS.png")
+include_graphics("images/simple_DS.png")
 
 ```
   
@@ -255,7 +256,7 @@ fit_simulated_RW_cmd<-readRDS("fit_sim_stan_trials.RDS")
 # # mcmc_intervals(posteriors)  +
 # #   geom_point(data=realVals,aes(x=values,y=parameters),colour='red',size=2)
 # # dev.off()
-include_graphics("simple_mcmc_intervals.png")
+include_graphics("images/simple_mcmc_intervals.png")
 # rm(list=c("pars2plot2","pars2plot","realVals","posteriors"))
 
 ```
@@ -304,7 +305,7 @@ include_graphics("simple_mcmc_intervals.png")
 #                fun = mean,geom = "point")+
 #   facet_grid(~treatment)
 # dev.off()
-include_graphics("simple_ppchecks.png")
+include_graphics("images/simple_ppchecks.png")
 ```
 
 ## The reversal fake data set 
@@ -417,7 +418,7 @@ rm(list=c("sim_data_stan","zeros","prediction.ind"))
 #     guides(fill=guide_legend(title="Brain size"))+
 #     ggtitle("Repeated reversal vs brainsize")
 # dev.off()
-include_graphics("reversal_data.png")
+include_graphics("images/reversal_data.png")
 ```
 
 
@@ -460,7 +461,7 @@ fit_simulated_RW_cmd$save_object(file = "fit_reversal_fake.RDS")
 # mcmc_intervals(posteriors)  +
 #   geom_point(data=realVals,aes(x=values,y=parameters),colour='red',size=2)
 # dev.off()
-include_graphics("reversal_mcmc_interv.png")
+include_graphics("images/reversal_mcmc_interv.png")
 # rm(list=c("pars2plot2","pars2plot","posteriors"))
   
 ```
@@ -515,7 +516,7 @@ include_graphics("reversal_mcmc_interv.png")
 #                fun = mean,geom = "point")+
 #   facet_grid(~treatment)
 # dev.off()
-include_graphics("reversal_ppchecks.png")
+include_graphics("images/reversal_ppchecks.png")
 ```
 
 ## Fitting the model to the Boussard *et al* data set
@@ -605,7 +606,7 @@ fit_boussard_RW_cmd<-readRDS("fit_boussard_stan.RDS")
 ```
 
 
-```{r boussard_interv,fig.cap='Bayesian estimation of paramteres to the Boussard *et al* data set. Light and dark grey bands correspond to the 50 and 90\\% credible interval'}
+```{r boussard_interv,fig.cap='Bayesian estimation of paramteres to the Boussard *et al* 2020 data-set. Light and dark grey bands correspond to the 50 and 90\\% credible interval'}
 # pars2plot <- c("tau", "mu_alpha", "alphasT[1]", "alphasT[2]",
 #                 "sigma_a")
 # 
@@ -615,13 +616,13 @@ fit_boussard_RW_cmd<-readRDS("fit_boussard_stan.RDS")
 # png("boussard_mcmc_interv.png")
 # mcmc_intervals(posteriors)
 # dev.off()
-include_graphics("boussard_mcmc_interv.png")
+include_graphics("images/boussard_mcmc_interv.png")
 # rm(list=c("pars2plot","posteriors"))
 
 ```
 
 
-```{r ppchecks_boussard,fig.cap='Posterior predictive checks of the bayesian estimation. Points correspond to Boussard data-set . Light and dark grey bands correspond to the 50 and 90\\% credible interval predicted by the model'}
+```{r ppchecks_boussard,fig.cap='Posterior predictive checks of the bayesian estimation. Points correspond to Boussard *et al* 2020 data-set . Light and dark grey bands correspond to the 50 and 90\\% credible interval predicted by the model'}
 # preds <- fit_boussard_RW_cmd$draws(variables = "y_pred")
 # 
 # preds_df <- posterior::as_draws_df(preds)
@@ -685,11 +686,11 @@ include_graphics("boussard_mcmc_interv.png")
 #       quantile(x,0.25)},colour=NA)+
 #     facet_grid(brainsize~reversal)
 # dev.off()
-include_graphics("boussard_ppchecks.png")
+include_graphics("images/boussard_ppchecks.png")
 
 ```
 
-## Let' fit a model with different learning rates in reversal blocks to the Boussard *et al* data set 
+## Let' fit a model with different learning rates in reversal blocks to the Boussard [-@boussard_Brain_2020] data set 
 
 Now we use a model where we allow individuals to have a different 
 *speed of learning* on each reversal block. To do that, we estimate a fixed effect
@@ -793,13 +794,13 @@ fit_boussard_RW_rev<-readRDS("fit_boussard_rev.RDS")
 #                    mcmc_intervals(posteriorsRev))
 # dev.off()
 # rm(list=c("pars2plot","posteriors"))
-include_graphics("boussard_mcmc_interv_rev.png")
+include_graphics("images/boussard_mcmc_interv_rev.png")
 
 
 ```
 
 
-```{r ppchecks_boussard_rev, fig.cap='Posterior predictive checks of the bayesian estimation for a model with different *speed of learning* on the reversal blocks. Points correspond to Boussard data-set. Light and dark grey bands correspond to the 50 and 90\\% credible interval predicted by the model'}
+```{r ppchecks_boussard_rev, fig.cap='Posterior predictive checks of the bayesian estimation for a model with different *speed of learning* on the reversal blocks. Points correspond to Boussard  data-set. Light and dark grey bands correspond to the 50 and 90\\% credible interval predicted by the model'}
 
 # preds <- fit_boussard_RW_rev$draws(variables = "y_pred")
 # 
@@ -866,7 +867,7 @@ include_graphics("boussard_mcmc_interv_rev.png")
 #       quantile(x,0.25)},colour=NA)+
 #     facet_grid(brainsize~reversal)
 # dev.off()
-include_graphics("boussardREV_ppchecks.png")
+include_graphics("images/boussardREV_ppchecks.png")
 
 ```
 
@@ -988,7 +989,7 @@ rm(list=c("sim_data_stan","zeros","prediction.ind"))
 #     guides(fill=guide_legend(title="Brain size"))+
 #     ggtitle("Repeated reversal vs brainsize")
 # dev.off()
-include_graphics("reversal_data_sim_block.png")
+include_graphics("images/reversal_data_sim_block.png")
 ```
 
 ```{r,include=FALSE,results='hide',eval=FALSE}
@@ -1044,7 +1045,7 @@ fit_simulated_RW_rev<-readRDS("fit_reversal_block_fake.RDS")
 #                      geom_point(data=realValsRev,aes(x=values,y=parameters),
 #                                 colour='red',size=2))
 # dev.off()
-include_graphics("sim_mcmc_interv_rev.png")
+include_graphics("images/sim_mcmc_interv_rev.png")
 # rm(list=c("pars2plot2","pars2plot","posteriors"))
   
 ```
@@ -1097,8 +1098,10 @@ include_graphics("sim_mcmc_interv_rev.png")
 #                fun = mean,geom = "point")+
 #   facet_grid(~treatment)
 # dev.off()
-include_graphics("sim_reversal_ppchecks.png")
+include_graphics("images/sim_reversal_ppchecks.png")
 ```
+
+
 
  
 <!-- ## Fitting a model with random temperature parameter to the Boussard *et al* data set -->
@@ -1193,7 +1196,7 @@ include_graphics("sim_reversal_ppchecks.png")
 <!-- #                    mcmc_intervals(posteriorsRev)) -->
 <!-- # dev.off() -->
 <!-- # rm(list=c("pars2plot","posteriors")) -->
-<!-- include_graphics("boussard_mcmc_interv_rev.png") -->
+<!-- include_graphics("images/boussard_mcmc_interv_rev.png") -->
 
 
 <!-- ``` -->
@@ -1266,6 +1269,85 @@ include_graphics("sim_reversal_ppchecks.png")
 <!-- #       quantile(x,0.25)},colour=NA)+ -->
 <!-- #     facet_grid(brainsize~reversal) -->
 <!-- # dev.off() -->
-<!-- include_graphics("boussardREV_ppchecks.png") -->
+<!-- include_graphics("images/boussardREV_ppchecks.png") -->
 
 <!-- ``` -->
+
+## Fitting the model with 2 treatment effects
+# Boussard [-@boussard_Link_2021] brain size *v.s.* age
+
+As another example I show now results from fitting the model to the Boussard 
+[-@boussard_Link_2021] data-set. Where fish from the to brain size experimental 
+groups are assessed on the effect of age in a single reversal learning task. 
+
+```{r, fig.cap='Performance of fish according to the two experimental groups  - brain size and age - along the initial and reversal learning'}
+library(data.table)
+library(readxl)
+library(here)
+library(dplyr)
+library(ggplot2)
+library(tidyverse)
+theme_set(new = theme_classic())
+## Read the data 
+
+boussard2_data <- read_excel(here("data","boussard2",
+                                 "Cognitive_ageing_original_data.xlsx"),
+                             sheet = 'FL orig. data',
+                             col_types = c('text','numeric','numeric',
+                                           'numeric','text','text','text',
+                                           'text','numeric','numeric'))
+boussard2_data <- boussard2_data %>% mutate(reversal=0)
+
+boussard2_data_b <- read_excel(here("data","boussard2",
+                                  "Cognitive_ageing_original_data.xlsx"),
+                             sheet = 'RL orig. data',
+                             col_types = c('text','numeric','numeric',
+                                           'numeric','text','text','text',
+                                           'text','numeric','numeric'))
+
+boussard2_data_b <- boussard2_data_b %>% mutate(reversal=1)
+
+boussard2_data <- as.data.table(boussard2_data)
+
+boussard2_data_b <- as.data.table(boussard2_data_b)
+
+# boussard2_data$tankID %>% unique() %>% length()
+
+boussard2_data <-boussard2_data[tankID!="57"]
+
+# boussard2_data_b$tankID %>% unique() %>% length()
+
+boussard2_data <- rbind(boussard2_data,boussard2_data_b) 
+
+# boussard2_data[,unique(brainsize)]
+# boussard2_data[,unique(age)]
+
+boussard2_data[,age.int:=lapply(age,function(x){
+  switch(x,young=1,middle=2,old=3)})]
+boussard2_data[,brainsize:=brainsize+1]
+
+boussard2_data %>% mutate(brainsize=as.factor(brainsize)) %>%
+  ggplot(aes(y=success,x=trial,col=age,fill=age))+
+    stat_summary(fun = mean,geom = "point")+
+    stat_summary(fun = mean,geom = "line")+
+    # geom_point()+
+    theme(legend.position = c(0.8,0.5),
+          legend.direction = "horizontal",
+          strip.text.y = element_blank())+
+    guides(fill=guide_legend(title="age"))+
+    ggtitle("Repeated reversal vs  brainsize")+
+    facet_grid(brainsize~reversal,scales = "free_x")
+
+```
+
+
+```{r, fig.cap='Bayesian estimation of paramteres to the Boussard *et al* 2021 data set. Light and dark grey bands correspond to the 50 and 90\\% credible interval'}
+include_graphics("images/boussard2intervals.png")
+```
+
+
+```{r,fig.cap='Posterior predictive checks of the bayesian estimation. Points correspond to Boussard data-set. Light and dark coloured bands correspond to the 50 and 90\\% credible interval predicted by the model'}
+include_graphics("images/boussard2_ppchecks.png")
+```
+
+## References
