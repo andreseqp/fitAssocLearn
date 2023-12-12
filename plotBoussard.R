@@ -13,7 +13,7 @@ library(ggplot2)
 
 ## Read the data 
 
-boussard_data <- read_excel(here("data","doi_10.5061_dryad.5mkkwh72s__v2",
+boussard_data <- read_excel(here("data","boussard_2020",
                            "SRL(all_data).xlsx"))
 
 boussard_data <-boussard_data %>% as.data.table()

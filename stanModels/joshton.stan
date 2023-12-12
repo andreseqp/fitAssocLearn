@@ -1,4 +1,4 @@
-// Rescola-wagner model to fit the Boussard et al data set
+// Rescola-wagner model to fit the Johnston et al data set
 // the model assumes the speed of learning (alpha) is given by a 
 // deterministic effect (brain size treatment)
 // and a random effect. The temperature (tau) is the same for all individuals
@@ -9,7 +9,7 @@ data {
   array [B] int <lower=0> BE; // number of treatment effects in each treatment
   array[Tr,2] int <lower=0,upper=1> block_r;    // Reward on each trial
   array[B,N] int treat_ID;    // assignment of treatment effects for individuals
-  array[N,Tr] int <lower=0, upper=1> y;    // choice
+  array[N,Tr] int <lower=0> y;    // choice
 }
 
 transformed data {
@@ -50,6 +50,7 @@ transformed parameters {
       tmpAlphaUn += mu_alpha + sigma_a*alphasID[i];
       countTreat = 0;
       for (j in 1:B){
+        // tmpAlphaUn += alphasT[treat_ID[1,i]];
         tmpAlphaUn += alphasT[countTreat+treat_ID[j,i]];
         countTreat += BE[j];
       }
@@ -79,10 +80,11 @@ model {
   alphasID  ~ normal(0, 2);
     // group parameters
   tau ~ normal(0, 2);
-
+  
   for (ind in 1:N){
     // Initialize with 0 estimated values
     est_values = initV;
+    //  Training session:
     
     for (tr in 1:Tr){
       // Calculate probabilities based on values

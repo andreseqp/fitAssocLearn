@@ -18,7 +18,7 @@ library(tidyverse)
 theme_set(new = theme_classic())
 ## Read the data 
 
-boussard2_data <- read_excel(here("data","boussard2",
+boussard2_data <- read_excel(here("data","boussard_2021",
                                  "Cognitive_ageing_original_data.xlsx"),
                              sheet = 'FL orig. data',
                              col_types = c('text','numeric','numeric',
@@ -26,7 +26,7 @@ boussard2_data <- read_excel(here("data","boussard2",
                                            'text','numeric','numeric'))
 boussard2_data <- boussard2_data %>% mutate(reversal=0)
 
-boussard2_data_b <- read_excel(here("data","boussard2",
+boussard2_data_b <- read_excel(here("data","boussard_2021",
                                   "Cognitive_ageing_original_data.xlsx"),
                              sheet = 'RL orig. data',
                              col_types = c('text','numeric','numeric',
@@ -62,6 +62,7 @@ interaction(boussard2_data$tankID,boussard2_data$fishID) %>%
 table(boussard2_data[,c("fishID","replicate")])
 table(boussard2_data[,c("tankID","fishID")])
 table(boussard2_data[,c("tankID","replicate")])
+table(boussard2_data[,c("tankID","rewarded.colour")])
 table(boussard2_data[,c("fishID","replicate","tankID")])
 
 # get number of individuals
@@ -157,7 +158,7 @@ fit_boussard_RW_2treat <- boussard_RW_2treat$sample(list(N=Nind,B=Ntreat,
                                        treat_ID=treat_Inds,
                                        y=boussard2_wide),
                                     parallel_chains = getOption("mc.cores", 5),
-                                    chains = 5)
+                                    chains = 3)
 
 # Save samples to file
 fit_boussard_RW_2treat$save_object(file = "fit_boussard2_stan2treat.RDS")
@@ -248,22 +249,141 @@ boussard2_data %>% mutate(brainsize=as.factor(brainsize)) %>%
 dev.off()
 
 
+# Include the effect of the color used for the association
 
+treat_cols <- boussard2_data[,unique(rewarded.colour),by=.(tankID,reversal)] %>% 
+  as.data.table()
+treat_cols <- dcast(treat_cols,tankID~reversal,value.var = "V1")
+treat_cols[,tankID:=NULL]
+setnames(treat_cols,old = c("0","1"),new = c("Initial","Reversal"))
+treat_cols[,`:=`(Initial=ifelse(Initial=="yellow",1,2),
+                 Reversal=ifelse(Reversal=="Yellow",1,2))]
+treat_cols <- as.matrix(treat_cols)
 
+iniTR = boussard2_data[reversal==0,max(trial.long)]
+
+## Let's first fit a simple RW model
 # Compile stan model with different random alpha for each reversal
-boussard_RW_rev<-cmdstan_model("boussard_RW_rev.stan")
-
+boussard_RW_2treat_col<-cmdstan_model("stanModels/boussard_RW_2_treat_col.stan")
 
 # sample from posterior
-fit_boussard_RW_rev <- boussard_RW_rev$sample(list(N=Nind,B=Ntreat,Tr=Ntrials/Nrev,
-                                                   Rev=Nrev,TotTr=Ntrials,
-                                                   block_r=block_r,
-                                                   treat_ID=treat_Inds,
-                                                   y=boussard_wide),
-                                              parallel_chains = getOption("mc.cores", 5),
-                                              chains = 3)
+fit_boussard_RW_2treat_col <- boussard_RW_2treat_col$sample(list(N=Nind,B=Ntreat,
+                                                         BE= NtreatEff,
+                                                         Tr=Ntrials,
+                                                         iniTr=iniTR,
+                                                         color_assn=treat_cols,
+                                                         block_r=block_r,
+                                                         treat_ID=treat_Inds,
+                                                         y=boussard2_wide),
+                                                    parallel_chains = getOption("mc.cores", 5),
+                                                    chains = 3)
 
 # Save samples to file
-fit_boussard_RW_cmd$save_object(file = "fit_boussard_stan.RDS")
+fit_boussard_RW_2treat_col$save_object(file = "fit_boussard2_stan2treat_col.RDS")
 
-fit_boussard_RW_cmd<-readRDS("fit_boussard_stan.RDS")
+fit_boussard_RW_2treat_col<-readRDS("fit_boussard2_stan2treat_col.RDS")
+
+# Use shinystan to evaluate the performance of the model
+# launch_shinystan(fit_boussard_RW_2treat_col)
+
+
+pars2plot <- c("tau", "mu_alpha", "alphasT[1]", "alphasT[2]",
+               "alphasT[3]", "alphasT[4]","alphasT[5]","colAlphas[1]",
+               "colAlphas[2]","sigma_a")
+
+posteriors<-fit_boussard_RW_2treat_col$draws(
+  variables = pars2plot)
+
+dimnames(posteriors)$variable <- c(expression(tau),expression(mu[alpha]),
+                                   "small brain size", "large brain size", 
+                                   "young age", "middle age", "old age",
+                                   "yellow", "red",
+                                   expression(sigma[alpha]))
+
+
+png("images/boussard2intervals_col.png")
+mcmc_intervals(posteriors)  
+dev.off()
+
+preds <- fit_boussard_RW_2treat$draws(variables = "y_pred")
+
+preds_df <- posterior::as_draws_df(preds)
+
+preds_long <- reshape2::melt(preds_df,id=c('.chain','.iteration'),
+                             measure.vars=grep("y_pred",colnames(preds_df)))
+
+rm(list=c("preds","preds_df"))
+
+# preds_long <- preds_long %>% filter(.chain<2)
+# preds_long <- as.data.table(preds_long)
+
+preds_long <- as.data.table(preds_long)
+
+preds_long[,c("individual","trial"):=tstrsplit(variable,",")]
+
+preds_long[,variable:=NULL]
+
+preds_long[,`:=`(individual=parse_number(individual),
+                 trial=parse_number(trial))]
+
+preds_long <- preds_long[treatAssign[,.(ind,brainsize,age)],
+                         on=.(individual=ind)]
+
+treat_cols <- as.data.table(treat_cols) 
+treat_cols$ind <- 1:287
+
+
+preds_long <- preds_long[treat_cols,on=.(individual=ind)]
+
+preds_long[,rewarded.colour:=ifelse(trial<=iniTR,
+                                    Initial,Reversal)]
+
+# Average over de MCMC samples
+mean_ind <- preds_long[,mean(value),
+                       by=.(.chain,.iteration,brainsize,age,trial,
+                            rewarded.colour)]
+
+
+rm(list="preds_long")
+
+
+mean_ind <-mean_ind %>%
+  mutate(reversal= ifelse(trial>24,1,0)) %>%
+  mutate(RTrial=reversal*(-24)+trial)
+
+colnames(mean_ind) <- c("chain","iteration","brainsize","age","Ttrial",
+                        "rewarded.colour","success",
+                        "reversal","trial")
+
+
+png("images/boussard2_ppchecks_colour.png")
+boussard2_data %>% mutate(brainsize=as.factor(brainsize)) %>%
+  ggplot(aes(y=success,x=trial,col=age,fill=age))+
+  stat_summary(fun = mean,geom = "point")+
+  stat_summary(fun = mean,geom = "line")+
+  # geom_point()+
+  theme(legend.position = c(0.8,0.5),
+        legend.direction = "horizontal",
+        strip.text.y = element_blank())+
+  guides(fill=guide_legend(title="age"))+
+  ggtitle("Repeated reversal vs  brainsize")+
+  stat_summary(data=mean_ind,aes(x=trial,y=success,col=age,fill=age),
+               geom="ribbon",alpha = 0.2,fun.max = function(x){
+                 quantile(x,0.95)},
+               fun.min = function(x){
+                 quantile(x,0.05)})+
+  stat_summary(data=mean_ind,aes(x=trial,y=success,col=age,fill=age),
+               geom="ribbon",alpha = 0.5,fun.max = function(x){
+                 quantile(x,0.75)},
+               fun.min = function(x){
+                 quantile(x,0.25)})+
+  facet_grid(brainsize~reversal+rewarded.colour,scales = "free_x")
+dev.off()
+
+
+
+
+
+
+
+

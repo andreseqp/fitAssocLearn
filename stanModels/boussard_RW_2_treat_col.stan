@@ -6,8 +6,11 @@ data {
   int<lower=0> N; // number of individuals 
   int<lower=0> B; // number of experimental treatments
   int<lower=0> Tr; // number of trials in total
+  int<lower=0> iniTr;
   array [B] int <lower=0> BE; // number of treatment effects in each treatment
   array[Tr,2] int <lower=0,upper=1> block_r;    // Reward on each trial
+  array[N,2] int <lower=1,upper=2> color_assn; 
+  // Color assignment for each individual/block
   array[B,N] int treat_ID;    // assignment of treatment effects for individuals
   array[N,Tr] int <lower=0, upper=1> y;    // choice
 }
@@ -25,6 +28,7 @@ parameters {
   real tau;
   // treatment parameters
   vector[totAlphas] alphasT;
+  vector[2] colAlphas;
   // hyper-parameters
   real mu_alpha;
   real <lower=0> sigma_a;
@@ -41,20 +45,23 @@ parameters {
 // }
 transformed parameters {
   // Transform subject-level raw parameters
-  vector <lower=0, upper=1>[N]  alphasID_t;
+  array [N,2] real <lower=0, upper=1>  alphasID_t;
   real tau_t;
   {
-    real tmpAlphaUn = 0;
+    vector[2] tmpAlphaUn = rep_vector(0.0, 2);
     int countTreat;
     for (i in 1:N) {
-      tmpAlphaUn += mu_alpha + sigma_a*alphasID[i];
+      tmpAlphaUn[1] += mu_alpha + sigma_a*alphasID[i] + colAlphas[color_assn[i,1]];
+      tmpAlphaUn[2] += mu_alpha + sigma_a*alphasID[i] + colAlphas[color_assn[i,2]];
       countTreat = 0;
       for (j in 1:B){
-        tmpAlphaUn += alphasT[countTreat+treat_ID[j,i]];
+        tmpAlphaUn[1] += alphasT[countTreat+treat_ID[j,i]];
+        tmpAlphaUn[2] += alphasT[countTreat+treat_ID[j,i]];
         countTreat += BE[j];
       }
-      alphasID_t[i]  = inv_logit(tmpAlphaUn);
-      tmpAlphaUn = 0;
+      alphasID_t[i,1]  = inv_logit(tmpAlphaUn[1]);
+      alphasID_t[i,2]  = inv_logit(tmpAlphaUn[2]);
+      tmpAlphaUn = rep_vector(0.0, 2);
     }
   }
   tau_t = exp(tau);
@@ -77,6 +84,7 @@ model {
   // alphasT  ~ normal(mu_alpha, sigma_a);
   alphasT  ~ normal(0, 2);
   alphasID  ~ normal(0, 2);
+  colAlphas ~ normal(0, 2);
     // group parameters
   tau ~ normal(0, 2);
 
@@ -100,12 +108,25 @@ model {
         
         if(y[ind,tr]==1){ // if choice was succesfull
           pred_error = block_r[tr,2]  - est_values[2];
-          est_values[2] += alphasID_t[ind]*pred_error;
+          if(Tr<=iniTr){
+            est_values[2] += alphasID_t[ind,1]*pred_error;
+          }
+          else{
+            est_values[2] += alphasID_t[ind,2]*pred_error;
+          }
+          
+          
           // update action values for option 2
         }
         else{ // if choice was unsuccesfull
           pred_error =  block_r[tr,1]- est_values[1];
-          est_values[1] += alphasID_t[ind]*pred_error;
+          if(Tr<=iniTr){
+            est_values[1] += alphasID_t[ind,1]*pred_error;  
+          }
+          else{
+            est_values[1] += alphasID_t[ind,2]*pred_error;  
+          }
+          
           // update action values for option 1
         }
       }
@@ -114,12 +135,22 @@ model {
         y[ind,tr] ~ bernoulli(probs[1]);
         if(y[ind,tr]==1){ // if choice was successful
           pred_error =  block_r[tr,1] - est_values[1];
-          est_values[1] += alphasID_t[ind]*pred_error;
+          if(Tr<=iniTr){
+            est_values[1] += alphasID_t[ind,1]*pred_error;
+          }
+          else{
+            est_values[1] += alphasID_t[ind,2]*pred_error;
+          }
           // update action values for option 1
         }
         else{ // if choice was unsuccesfull
           pred_error = block_r[tr,2] - est_values[2];
-          est_values[2] += alphasID_t[ind]*pred_error;
+          if(Tr<=iniTr){
+            est_values[2] += alphasID_t[ind,1]*pred_error;
+          }
+          else{
+            est_values[2] += alphasID_t[ind,2]*pred_error;
+          }
           // update action values for option 2
         }
       }
@@ -154,12 +185,22 @@ generated quantities {
         y_pred[ind,tr] = bernoulli_rng(probs_p[2]);
         if(y_pred[ind,tr]==1){
           pred_error_p = block_r[tr,2]  - est_values_p[2];
-          est_values_p[2] += alphasID_t[ind]*pred_error_p;
+          if(tr<=iniTr){
+            est_values_p[2] += alphasID_t[ind,1]*pred_error_p;
+          }
+          else{
+            est_values_p[2] += alphasID_t[ind,2]*pred_error_p;
+          }
           // update action values
         }
         else{
           pred_error_p =  block_r[tr,1]- est_values_p[1];
-          est_values_p[1] += alphasID_t[ind]*pred_error_p;
+          if(tr<=iniTr){
+            est_values_p[1] += alphasID_t[ind,1]*pred_error_p;
+          }
+          else{
+            est_values_p[1] += alphasID_t[ind,2]*pred_error_p;
+          }
           // update action values
         }
       }
@@ -168,12 +209,22 @@ generated quantities {
         y_pred[ind,tr] = bernoulli_rng(probs_p[1]);
         if(y_pred[ind,tr]==1){
           pred_error_p =  block_r[tr,1] - est_values_p[1];
-          est_values_p[1] += alphasID_t[ind]*pred_error_p;
+          if(tr<=iniTr){
+            est_values_p[1] += alphasID_t[ind,1]*pred_error_p;
+          }
+          else{
+            est_values_p[1] += alphasID_t[ind,2]*pred_error_p;
+          }
           // update action values
         }
         else{
           pred_error_p = block_r[tr,2] - est_values_p[2];
-          est_values_p[2] += alphasID_t[ind]*pred_error_p;
+          if(tr<=iniTr){
+            est_values_p[2] += alphasID_t[ind,1]*pred_error_p;
+          }
+          else{
+            est_values_p[2] += alphasID_t[ind,2]*pred_error_p;
+          }
           // update action values
         }
       }
