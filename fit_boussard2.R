@@ -5,7 +5,7 @@
 #  Experimental Gerontology 146:111218.
 
 
-## Import important packages
+## Import important packages --------------------------------------------------
 library(data.table)
 library(readxl)
 library(here)
@@ -16,7 +16,7 @@ library(shinystan)
 library(stringi)
 library(tidyverse)
 theme_set(new = theme_classic())
-## Read the data 
+## Read the data ----------------------------------------------------------------
 
 boussard2_data <- read_excel(here("data","boussard_2021",
                                  "Cognitive_ageing_original_data.xlsx"),
@@ -145,7 +145,7 @@ library(cmdstanr)
 stan_path <- here("..","cmdstan","cmdstan-2.32.2")
 set_cmdstan_path(stan_path)
 
-## Let's first fit a simple RW model
+## Let's first fit a simple RW model -------------------------------------------
 # Compile stan model with different random alpha for each reversal
 boussard_RW_2treat<-cmdstan_model("stanModels/boussard_RW_2_treat.stan")
 
@@ -167,7 +167,6 @@ fit_boussard_RW_2treat<-readRDS("fit_boussard2_stan2treat.RDS")
 
 # Use shinystan to evaluate the performance of the model
 # launch_shinystan(fit_boussard)
-
 
 pars2plot <- c("tau", "mu_alpha", "alphasT[1]", "alphasT[2]",
                "alphasT[3]", "alphasT[4]","alphasT[5]",
@@ -207,7 +206,7 @@ preds_long[,variable:=NULL]
 preds_long[,`:=`(individual=parse_number(individual),
                  trial=parse_number(trial))]
 
-preds_long <- preds_long[.chain<3]
+# preds_long <- preds_long[.chain<3]
 preds_long <- preds_long[treatAssign[,.(ind,brainsize,age)],on=.(individual=ind)]
 
 # Average over de MCMC samples
@@ -220,32 +219,39 @@ mean_ind <-mean_ind %>%
   mutate(reversal= ifelse(trial>24,1,0)) %>%
   mutate(RTrial=reversal*(-24)+trial)
 
+
 colnames(mean_ind) <- c("chain","iteration","brainsize","age","Ttrial","success",
                         "reversal","trial")
 
+mean_ind <- mean_ind %>% mutate(brainsize=factor(brainsize,
+                                                 labels = c("small","large")),
+                                reversal=factor(reversal,
+                                                labels = c("initial","reversal"))) 
 
 png("images/boussard2_ppchecks.png")
-boussard2_data %>% mutate(brainsize=as.factor(brainsize)) %>%
+boussard2_data %>% 
+  mutate(brainsize=factor(brainsize,
+                          labels = c("small","large"))) %>%
+  mutate(reversal=factor(reversal,labels = c("initial","reversal"))) %>% 
   ggplot(aes(y=success,x=trial,col=age,fill=age))+
-    stat_summary(fun = mean,geom = "point")+
-    stat_summary(fun = mean,geom = "line")+
-    # geom_point()+
-    theme(legend.position = c(0.8,0.5),
-          legend.direction = "horizontal",
-          strip.text.y = element_blank())+
-    guides(fill=guide_legend(title="age"))+
-    ggtitle("Repeated reversal vs  brainsize")+
-    stat_summary(data=mean_ind,aes(x=trial,y=success,col=age,fill=age),
-                 geom="ribbon",alpha = 0.2,fun.max = function(x){
-      quantile(x,0.95)},
-      fun.min = function(x){
-      quantile(x,0.05)})+
-    stat_summary(data=mean_ind,aes(x=trial,y=success,col=age,fill=age),
-                 geom="ribbon",alpha = 0.5,fun.max = function(x){
-      quantile(x,0.75)},
-      fun.min = function(x){
-      quantile(x,0.25)})+
-    facet_grid(brainsize~reversal,scales = "free_x")
+  stat_summary(fun = mean,geom = "point")+
+  stat_summary(fun = mean,geom = "line")+
+  geom_hline(yintercept = c(0.5,1),col="grey")+
+  theme(legend.position = c(0.2,0.6),
+        legend.direction = "horizontal")+
+  guides(fill=guide_legend(title="age"))+
+  ggtitle("Repeated reversal vs  brainsize")+
+  stat_summary(data=mean_ind,aes(x=trial,y=success,col=age,fill=age),
+               geom="ribbon",alpha = 0.2,fun.max = function(x){
+                 quantile(x,0.95)},
+               fun.min = function(x){
+                 quantile(x,0.05)})+
+  stat_summary(data=mean_ind,aes(x=trial,y=success,col=age,fill=age),
+               geom="ribbon",alpha = 0.5,fun.max = function(x){
+                 quantile(x,0.75)},
+               fun.min = function(x){
+                 quantile(x,0.25)})+
+  facet_grid(brainsize~reversal,scales = "free_x")
 dev.off()
 
 
@@ -260,10 +266,10 @@ treat_cols[,`:=`(Initial=ifelse(Initial=="yellow",1,2),
                  Reversal=ifelse(Reversal=="Yellow",1,2))]
 treat_cols <- as.matrix(treat_cols)
 
-iniTR = boussard2_data[reversal==0,max(trial.long)]
+iniTR <- boussard2_data[reversal==0,max(trial.long)]
 
 ## Let's first fit a simple RW model
-# Compile stan model with different random alpha for each reversal
+# Compile stan model allowing an effect of the reinforced color -------------
 boussard_RW_2treat_col<-cmdstan_model("stanModels/boussard_RW_2_treat_col.stan")
 
 # sample from posterior
@@ -343,7 +349,6 @@ mean_ind <- preds_long[,mean(value),
                        by=.(.chain,.iteration,brainsize,age,trial,
                             rewarded.colour)]
 
-
 rm(list="preds_long")
 
 
@@ -355,16 +360,21 @@ colnames(mean_ind) <- c("chain","iteration","brainsize","age","Ttrial",
                         "rewarded.colour","success",
                         "reversal","trial")
 
+mean_ind <- mean_ind %>% mutate(brainsize=factor(brainsize,
+                                                 labels = c("small","large")),
+                                reversal=factor(reversal,
+                                                labels = c("initial","reversal"))) 
 
 png("images/boussard2_ppchecks_colour.png")
-boussard2_data %>% mutate(brainsize=as.factor(brainsize)) %>%
+boussard2_data %>% 
+  mutate(brainsize=factor(brainsize,labels=c("small","large")),
+         reversal=factor(reversal,labels = c("initial","reversal"))) %>%
   ggplot(aes(y=success,x=trial,col=age,fill=age))+
   stat_summary(fun = mean,geom = "point")+
   stat_summary(fun = mean,geom = "line")+
-  # geom_point()+
-  theme(legend.position = c(0.8,0.5),
-        legend.direction = "horizontal",
-        strip.text.y = element_blank())+
+  geom_hline(yintercept=c(0.5,1),col="grey")+
+  theme(legend.position = c(0.2,0.6),
+        legend.direction = "horizontal")+
   guides(fill=guide_legend(title="age"))+
   ggtitle("Repeated reversal vs  brainsize")+
   stat_summary(data=mean_ind,aes(x=trial,y=success,col=age,fill=age),
@@ -380,7 +390,339 @@ boussard2_data %>% mutate(brainsize=as.factor(brainsize)) %>%
   facet_grid(brainsize~reversal+rewarded.colour,scales = "free_x")
 dev.off()
 
+### Let´s fit a model with treatment and random effects on the 
+## temperature parameter -------------------------------------------------------
 
+boussard_RW_2treat_tau<-cmdstan_model("stanModels/boussard_RW_2_treat_tau.stan")
+
+
+# sample from posterior
+# fit_boussard_RW_2treat_tau <- boussard_RW_2treat_tau$sample(list(N=Nind,B=Ntreat,
+#                                                          BE= NtreatEff,
+#                                                          Tr=Ntrials,
+#                                                          block_r=block_r,
+#                                                          treat_ID=treat_Inds,
+#                                                          y=boussard2_wide),
+#                                   parallel_chains = getOption("mc.cores", 5),
+#                                                     chains = 3)
+
+# Save samples to file
+# fit_boussard_RW_2treat_tau$save_object(file = "fit_boussard2_stan2treat_tau.RDS")
+
+fit_boussard_RW_2treat_tau<-readRDS("fit_boussard2_stan2treat_tau.RDS")
+
+# Use shinystan to evaluate the performance of the model
+# launch_shinystan(fit_boussard_RW_2treat_tau)
+
+
+pars2plot <- c("mu_tau", "tauT[1]", "tauT[2]",
+               "tauT[3]", "tauT[4]","tauT[5]",
+               "sigma_t","alpha")
+
+posteriors<-fit_boussard_RW_2treat_tau$draws(
+  variables = pars2plot)
+
+dimnames(posteriors)$variable <- c(expression(mu_tau),
+                                   "small brain size", "large brain size", 
+                                   "young age", "middle age", "old age",
+                                   expression(sigma[taU]),expression(alpha))
+
+
+png("images/boussard2intervals_tau.png")
+mcmc_intervals(posteriors)  
+dev.off()
+
+preds <- fit_boussard_RW_2treat_tau$draws(variables = "y_pred")
+
+preds_df <- posterior::as_draws_df(preds)
+
+preds_long <- reshape2::melt(preds_df,id=c('.chain','.iteration'),
+                             measure.vars=grep("y_pred",colnames(preds_df)))
+
+rm(list=c("preds","preds_df"))
+
+# preds_long <- preds_long %>% filter(.chain<2)
+# preds_long <- as.data.table(preds_long)
+
+preds_long <- as.data.table(preds_long)
+
+preds_long[,c("individual","trial"):=tstrsplit(variable,",")]
+
+preds_long[,variable:=NULL]
+
+preds_long[,`:=`(individual=parse_number(individual),
+                 trial=parse_number(trial))]
+
+preds_long <- preds_long[.chain<3]
+preds_long <- preds_long[treatAssign[,.(ind,brainsize,age)],on=.(individual=ind)]
+
+# Average over de MCMC samples
+mean_ind <- preds_long[,mean(value),by=.(.chain,.iteration,brainsize,age,trial)]
+
+rm(list="preds_long")
+
+
+mean_ind <-mean_ind %>%
+  mutate(reversal= ifelse(trial>24,1,0)) %>%
+  mutate(RTrial=reversal*(-24)+trial)
+
+colnames(mean_ind) <- c("chain","iteration","brainsize","age","Ttrial","success",
+                        "reversal","trial")
+
+mean_ind <- mean_ind %>% mutate(brainsize=factor(brainsize,
+                                     labels = c("small","large")),
+                    reversal=factor(reversal,
+                                    labels = c("initial","reversal"))) 
+
+png("images/boussard2_ppchecks_tau.png")
+boussard2_data %>% 
+  mutate(brainsize=factor(brainsize,
+                                  labels = c("small","large"))) %>%
+  mutate(reversal=factor(reversal,labels = c("initial","reversal"))) %>% 
+  ggplot(aes(y=success,x=trial,col=age,fill=age))+
+  stat_summary(fun = mean,geom = "point")+
+  stat_summary(fun = mean,geom = "line")+
+  geom_hline(yintercept = c(0.5,1),col="grey")+
+  theme(legend.position = c(0.2,0.6),
+        legend.direction = "horizontal")+
+  guides(fill=guide_legend(title="age"))+
+  ggtitle("Repeated reversal vs  brainsize")+
+  stat_summary(data=mean_ind,aes(x=trial,y=success,col=age,fill=age),
+               geom="ribbon",alpha = 0.2,fun.max = function(x){
+                 quantile(x,0.95)},
+               fun.min = function(x){
+                 quantile(x,0.05)})+
+  stat_summary(data=mean_ind,aes(x=trial,y=success,col=age,fill=age),
+               geom="ribbon",alpha = 0.5,fun.max = function(x){
+                 quantile(x,0.75)},
+               fun.min = function(x){
+                 quantile(x,0.25)})+
+  facet_grid(brainsize~reversal,scales = "free_x")
+dev.off()
+
+
+
+### Let´s fit a model with treatment and random effects on the 
+## temperature parameter + alpha -----------------------------------------------------
+
+boussard_RW_2treat_tau_alpha <- cmdstan_model("stanModels/boussard_RW_2_treat_tau_alpha.stan")
+
+
+# sample from posterior
+fit_boussard_RW_2treat_tau_alpha <- 
+  boussard_RW_2treat_tau_alpha$sample(list(N=Nind,B=Ntreat,
+             BE= NtreatEff,
+             Tr=Ntrials,
+             block_r=block_r,
+             treat_ID=treat_Inds,
+             y=boussard2_wide),
+        parallel_chains = getOption("mc.cores", 5),
+        chains = 3)
+
+# Save samples to file
+fit_boussard_RW_2treat_tau_alpha$save_object(file = "fit_boussard2_stan2treat_tau_alpha.RDS")
+
+fit_boussard_RW_2treat_tau_alpha<-readRDS("fit_boussard2_stan2treat_tau.RDS")
+
+# Use shinystan to evaluate the performance of the model
+# launch_shinystan(fit_boussard_RW_2treat_tau)
+
+
+pars2plot <- c("mus[1]","mus[2]", "tauT[1]", "tauT[2]",
+               "tauT[3]", "tauT[4]","tauT[5]",
+               "sigmas[1]","sigmas[2]")
+
+posteriors<-fit_boussard_RW_2treat_tau_alpha$draws(
+  variables = pars2plot)
+
+dimnames(posteriors)$variable <- c("mu_tau","mu_alpha",
+                                   "small brain size", "large brain size", 
+                                   "young age", "middle age", "old age",
+                                   "sigma_tau","sigma_alpha")
+
+
+png("images/boussard2intervals_tau_alpha.png")
+mcmc_intervals(posteriors)  
+dev.off()
+
+preds <- fit_boussard_RW_2treat_tau_alpha$draws(variables = "y_pred")
+
+preds_df <- posterior::as_draws_df(preds)
+
+preds_long <- reshape2::melt(preds_df,id=c('.chain','.iteration'),
+                             measure.vars=grep("y_pred",colnames(preds_df)))
+
+rm(list=c("preds","preds_df"))
+
+# preds_long <- preds_long %>% filter(.chain<2)
+# preds_long <- as.data.table(preds_long)
+
+preds_long <- as.data.table(preds_long)
+
+preds_long[,c("individual","trial"):=tstrsplit(variable,",")]
+
+preds_long[,variable:=NULL]
+
+preds_long[,`:=`(individual=parse_number(individual),
+                 trial=parse_number(trial))]
+
+preds_long <- preds_long[.chain<3]
+preds_long <- preds_long[treatAssign[,.(ind,brainsize,age)],on=.(individual=ind)]
+
+# Average over de MCMC samples
+mean_ind <- preds_long[,mean(value),by=.(.chain,.iteration,brainsize,age,trial)]
+
+rm(list="preds_long")
+
+
+mean_ind <-mean_ind %>%
+  mutate(reversal= ifelse(trial>24,1,0)) %>%
+  mutate(RTrial=reversal*(-24)+trial)
+
+colnames(mean_ind) <- c("chain","iteration","brainsize","age","Ttrial","success",
+                        "reversal","trial")
+
+mean_ind <- mean_ind %>% mutate(brainsize=factor(brainsize,
+                                                 labels = c("small","large")),
+                                reversal=factor(reversal,
+                                                labels = c("initial","reversal"))) 
+
+png("images/boussard2_ppchecks_tau_alpha.png")
+boussard2_data %>% 
+  mutate(brainsize=factor(brainsize,
+                          labels = c("small","large"))) %>%
+  mutate(reversal=factor(reversal,labels = c("initial","reversal"))) %>% 
+  ggplot(aes(y=success,x=trial,col=age,fill=age))+
+  stat_summary(fun = mean,geom = "point")+
+  stat_summary(fun = mean,geom = "line")+
+  geom_hline(yintercept = c(0.5,1),col="grey")+
+  theme(legend.position = c(0.2,0.6),
+        legend.direction = "horizontal")+
+  guides(fill=guide_legend(title="age"))+
+  ggtitle("Repeated reversal vs  brainsize")+
+  stat_summary(data=mean_ind,aes(x=trial,y=success,col=age,fill=age),
+               geom="ribbon",alpha = 0.2,fun.max = function(x){
+                 quantile(x,0.95)},
+               fun.min = function(x){
+                 quantile(x,0.05)})+
+  stat_summary(data=mean_ind,aes(x=trial,y=success,col=age,fill=age),
+               geom="ribbon",alpha = 0.5,fun.max = function(x){
+                 quantile(x,0.75)},
+               fun.min = function(x){
+                 quantile(x,0.25)})+
+  facet_grid(brainsize~reversal,scales = "free_x")
+dev.off()
+
+### Let´s fit a model with treatment and random effects on the 
+##  alpha + temperature parameter -----------------------------------------------------
+
+boussard_RW_2treat_tau_alpha <- cmdstan_model("stanModels/boussard_RW_2_treat_tau_alpha.stan")
+
+
+# sample from posterior
+fit_boussard_RW_2treat_alpha_tau <- 
+  boussard_RW_2treat_alpha_tau$sample(list(N=Nind,B=Ntreat,
+                                           BE= NtreatEff,
+                                           Tr=Ntrials,
+                                           block_r=block_r,
+                                           treat_ID=treat_Inds,
+                                           y=boussard2_wide),
+                                      parallel_chains = getOption("mc.cores", 5),
+                                      chains = 3)
+
+# Save samples to file
+fit_boussard_RW_2treat_alpha_tau$save_object(file = "fit_boussard2_stan2treat_alpha_tau.RDS")
+
+fit_boussard_RW_2treat_alpha_tau<-readRDS("fit_boussard2_stan2treat_alpha_tau.RDS")
+
+# Use shinystan to evaluate the performance of the model
+# launch_shinystan(fit_boussard_RW_2treat_tau)
+
+
+pars2plot <- c("mus[1]","mus[2]", "alphasT[1]", "alphasT[2]",
+               "alphasT[3]", "alphasT[4]","alphasT[5]",
+               "sigmas[1]","sigmas[2]")
+
+posteriors<-fit_boussard_RW_2treat_alpha_tau$draws(
+  variables = pars2plot)
+
+dimnames(posteriors)$variable <- c("mu_tau","mu_alpha",
+                                   "small brain size", "large brain size", 
+                                   "young age", "middle age", "old age",
+                                   "sigma_tau","sigma_alpha")
+
+
+png("images/boussard2intervals_alpha_tau.png")
+mcmc_intervals(posteriors)  
+dev.off()
+
+preds <- fit_boussard_RW_2treat_tau_alpha$draws(variables = "y_pred")
+
+preds_df <- posterior::as_draws_df(preds)
+
+preds_long <- reshape2::melt(preds_df,id=c('.chain','.iteration'),
+                             measure.vars=grep("y_pred",colnames(preds_df)))
+
+rm(list=c("preds","preds_df"))
+
+# preds_long <- preds_long %>% filter(.chain<2)
+# preds_long <- as.data.table(preds_long)
+
+preds_long <- as.data.table(preds_long)
+
+preds_long[,c("individual","trial"):=tstrsplit(variable,",")]
+
+preds_long[,variable:=NULL]
+
+preds_long[,`:=`(individual=parse_number(individual),
+                 trial=parse_number(trial))]
+
+preds_long <- preds_long[.chain<3]
+preds_long <- preds_long[treatAssign[,.(ind,brainsize,age)],on=.(individual=ind)]
+
+# Average over de MCMC samples
+mean_ind <- preds_long[,mean(value),by=.(.chain,.iteration,brainsize,age,trial)]
+
+rm(list="preds_long")
+
+
+mean_ind <-mean_ind %>%
+  mutate(reversal= ifelse(trial>24,1,0)) %>%
+  mutate(RTrial=reversal*(-24)+trial)
+
+colnames(mean_ind) <- c("chain","iteration","brainsize","age","Ttrial","success",
+                        "reversal","trial")
+
+mean_ind <- mean_ind %>% mutate(brainsize=factor(brainsize,
+                                                 labels = c("small","large")),
+                                reversal=factor(reversal,
+                                                labels = c("initial","reversal"))) 
+
+png("images/boussard2_ppchecks_alpha_tau.png")
+boussard2_data %>% 
+  mutate(brainsize=factor(brainsize,
+                          labels = c("small","large"))) %>%
+  mutate(reversal=factor(reversal,labels = c("initial","reversal"))) %>% 
+  ggplot(aes(y=success,x=trial,col=age,fill=age))+
+  stat_summary(fun = mean,geom = "point")+
+  stat_summary(fun = mean,geom = "line")+
+  geom_hline(yintercept = c(0.5,1),col="grey")+
+  theme(legend.position = c(0.2,0.6),
+        legend.direction = "horizontal")+
+  guides(fill=guide_legend(title="age"))+
+  ggtitle("Repeated reversal vs  brainsize")+
+  stat_summary(data=mean_ind,aes(x=trial,y=success,col=age,fill=age),
+               geom="ribbon",alpha = 0.2,fun.max = function(x){
+                 quantile(x,0.95)},
+               fun.min = function(x){
+                 quantile(x,0.05)})+
+  stat_summary(data=mean_ind,aes(x=trial,y=success,col=age,fill=age),
+               geom="ribbon",alpha = 0.5,fun.max = function(x){
+                 quantile(x,0.75)},
+               fun.min = function(x){
+                 quantile(x,0.25)})+
+  facet_grid(brainsize~reversal,scales = "free_x")
+dev.off()
 
 
 

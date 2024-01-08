@@ -103,7 +103,7 @@
 
 \title{Fitting associate learning models to data}
 \author{Andrés E. Quiñones}
-\date{2023-12-11}
+\date{2023-12-21}
 
 \begin{document}
 \maketitle
@@ -282,7 +282,7 @@ desicion-making dynamics.
 
 \includegraphics[width=6.67in,]{images/boussard_mcmc_interv} \hfill{}
 
-\caption{Bayesian estimation of paramteres to the Boussard *et al* 2020 data-set. Light and dark grey bands correspond to the 50 and 90\% credible interval}\label{fig:boussard_interv}
+\caption{Bayesian estimation of parameters to the Boussard *et al* 2020 data-set. Light and dark grey bands correspond to the 50 and 90\% credible interval}\label{fig:boussard_interv}
 \end{figure}
 
 \begin{figure}
@@ -402,7 +402,7 @@ task.
 
 \includegraphics[width=6.67in,]{images/boussard2intervals} \hfill{}
 
-\caption{Bayesian estimation of paramteres to the Boussard *et al* 2021 data set. Light and dark grey bands correspond to the 50 and 90\% credible interval}\label{fig:unnamed-chunk-8}
+\caption{Bayesian estimation of parameters to the Boussard *et al* 2021 data set. Light and dark grey bands correspond to the 50 and 90\% credible interval}\label{fig:unnamed-chunk-8}
 \end{figure}
 
 \begin{figure}
@@ -437,7 +437,7 @@ task.
 
 \includegraphics[width=6.67in,]{images/boussard2intervals_col} \hfill{}
 
-\caption{Bayesian estimation of paramteres to the Boussard *et al* 2021 data set. Light and dark grey bands correspond to the 50 and 90\% credible interval}\label{fig:unnamed-chunk-11}
+\caption{Bayesian estimation of parameters to the Boussard *et al* 2021 data set. Light and dark grey bands correspond to the 50 and 90\% credible interval}\label{fig:unnamed-chunk-11}
 \end{figure}
 
 \begin{figure}
@@ -445,6 +445,97 @@ task.
 \includegraphics[width=6.67in,]{images/boussard2_ppchecks_colour} \hfill{}
 
 \caption{Posterior predictive checks of the bayesian estimation. Points correspond to Boussard data-set. Light and dark coloured bands correspond to the 50 and 90\% credible interval predicted by the model}\label{fig:unnamed-chunk-12}
+\end{figure}
+
+\hypertarget{fitting-the-model-with-2-treatment-effects-influencing-the-temperature-parameter}{%
+\subsection{Fitting the model with 2 treatment effects influencing the
+temperature
+parameter}\label{fitting-the-model-with-2-treatment-effects-influencing-the-temperature-parameter}}
+
+\hypertarget{boussard--boussard_link_2021-brain-size-v.s.-age-1}{%
+\section{\texorpdfstring{Boussard (2021) brain size \emph{v.s.}
+age}{Boussard (2021) brain size v.s. age}}\label{boussard--boussard_link_2021-brain-size-v.s.-age-1}}
+
+As another example I show now results from fitting the model to the
+Boussard (2021) data-set. Where fish from the to brain size experimental
+groups are assessed on the effect of age in a single reversal learning
+task.
+
+\begin{figure}
+
+\includegraphics{report_files/figure-latex/unnamed-chunk-13-1} \hfill{}
+
+\caption{Performance of fish according to the two experimental groups  - brain size and age - along the initial and reversal learning}\label{fig:unnamed-chunk-13}
+\end{figure}
+
+\begin{figure}
+
+\includegraphics[width=6.67in,]{images/boussard2intervals_tau} \hfill{}
+
+\caption{Bayesian estimation of parameters to the Boussard *et al* 2021 data set. Light and dark grey bands correspond to the 50 and 90\% credible interval}\label{fig:unnamed-chunk-14}
+\end{figure}
+
+\begin{figure}
+
+\includegraphics[width=6.67in,]{images/boussard2_ppchecks_tau} \hfill{}
+
+\caption{Posterior predictive checks of the bayesian estimation. Points correspond to Boussard data-set. Light and dark coloured bands correspond to the 50 and 90\% credible interval predicted by the model}\label{fig:unnamed-chunk-15}
+\end{figure}
+
+\hypertarget{fitting-the-model-with-2-treatment-effects-influencing-the-temperature-parameter-and-random-effects-on-the-speed-of-learning}{%
+\subsection{Fitting the model with 2 treatment effects influencing the
+temperature parameter and random effects on the speed of
+learning}\label{fitting-the-model-with-2-treatment-effects-influencing-the-temperature-parameter-and-random-effects-on-the-speed-of-learning}}
+
+\hypertarget{boussard--boussard_link_2021-brain-size-v.s.-age-2}{%
+\section{\texorpdfstring{Boussard (2021) brain size \emph{v.s.}
+age}{Boussard (2021) brain size v.s. age}}\label{boussard--boussard_link_2021-brain-size-v.s.-age-2}}
+
+As another example I show now results from fitting the model to the
+Boussard (2021) data-set. Where fish from the to brain size experimental
+groups are assessed on the effect of age in a single reversal learning
+task.
+
+\begin{figure}
+
+\includegraphics[width=6.67in,]{images/boussard2intervals_tau_alpha} \hfill{}
+
+\caption{Bayesian estimation of parameters to the Boussard *et al* 2021 data set. Light and dark grey bands correspond to the 50 and 90\% credible interval}\label{fig:unnamed-chunk-16}
+\end{figure}
+
+\begin{figure}
+
+\includegraphics[width=6.67in,]{images/boussard2_ppchecks_tau_alpha} \hfill{}
+
+\caption{Posterior predictive checks of the bayesian estimation. Points correspond to Boussard data-set. Light and dark coloured bands correspond to the 50 and 90\% credible interval predicted by the model}\label{fig:unnamed-chunk-17}
+\end{figure}
+
+\hypertarget{fitting-the-model-with-2-treatment-effects-influencing-the-speed-of-learning-and-random-effects-on-the-temperature-parameter}{%
+\subsection{Fitting the model with 2 treatment effects influencing the
+speed of learning and random effects on the temperature
+parameter}\label{fitting-the-model-with-2-treatment-effects-influencing-the-speed-of-learning-and-random-effects-on-the-temperature-parameter}}
+
+\hypertarget{boussard--boussard_link_2021-brain-size-v.s.-age-3}{%
+\section{\texorpdfstring{Boussard (2021) brain size \emph{v.s.}
+age}{Boussard (2021) brain size v.s. age}}\label{boussard--boussard_link_2021-brain-size-v.s.-age-3}}
+
+As another example I show now results from fitting the model to the
+Boussard (2021) data-set. Where fish from the to brain size experimental
+groups are assessed on the effect of age in a single reversal learning
+task.
+
+\begin{figure}
+
+\includegraphics[width=6.67in,]{images/boussard2intervals_alpha_tau} \hfill{}
+
+\caption{Bayesian estimation of parameters to the Boussard *et al* 2021 data set. Light and dark grey bands correspond to the 50 and 90\% credible interval}\label{fig:unnamed-chunk-18}
+\end{figure}
+
+\begin{figure}
+
+\includegraphics[width=6.67in,]{images/boussard2_ppchecks_alpha_tau} \hfill{}
+
+\caption{Posterior predictive checks of the bayesian estimation. Points correspond to Boussard data-set. Light and dark coloured bands correspond to the 50 and 90\% credible interval predicted by the model}\label{fig:unnamed-chunk-19}
 \end{figure}
 
 \hypertarget{references}{%

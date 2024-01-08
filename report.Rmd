@@ -606,7 +606,7 @@ fit_boussard_RW_cmd<-readRDS("fit_boussard_stan.RDS")
 ```
 
 
-```{r boussard_interv,fig.cap='Bayesian estimation of paramteres to the Boussard *et al* 2020 data-set. Light and dark grey bands correspond to the 50 and 90\\% credible interval'}
+```{r boussard_interv,fig.cap='Bayesian estimation of parameters to the Boussard *et al* 2020 data-set. Light and dark grey bands correspond to the 50 and 90\\% credible interval'}
 # pars2plot <- c("tau", "mu_alpha", "alphasT[1]", "alphasT[2]",
 #                 "sigma_a")
 # 
@@ -1330,8 +1330,8 @@ boussard2_data %>% mutate(brainsize=as.factor(brainsize)) %>%
   ggplot(aes(y=success,x=trial,col=age,fill=age))+
     stat_summary(fun = mean,geom = "point")+
     stat_summary(fun = mean,geom = "line")+
-    # geom_point()+
-    theme(legend.position = c(0.8,0.5),
+    geom_hline(yintercept = c(0.5,1),col="grey")+
+    theme(legend.position = c(0.2,0.6),
           legend.direction = "horizontal",
           strip.text.y = element_blank())+
     guides(fill=guide_legend(title="age"))+
@@ -1341,7 +1341,7 @@ boussard2_data %>% mutate(brainsize=as.factor(brainsize)) %>%
 ```
 
 
-```{r, fig.cap='Bayesian estimation of paramteres to the Boussard *et al* 2021 data set. Light and dark grey bands correspond to the 50 and 90\\% credible interval'}
+```{r, fig.cap='Bayesian estimation of parameters to the Boussard *et al* 2021 data set. Light and dark grey bands correspond to the 50 and 90\\% credible interval'}
 include_graphics("images/boussard2intervals.png")
 ```
 
@@ -1408,8 +1408,9 @@ boussard2_data %>% mutate(brainsize=as.factor(brainsize)) %>%
   ggplot(aes(y=success,x=trial,col=age,fill=age))+
     stat_summary(fun = mean,geom = "point")+
     stat_summary(fun = mean,geom = "line")+
-    # geom_point()+
-    theme(legend.position = c(0.8,0.5),
+    geom_hline(yintercept = c(0.5,1),col="grey")+
+    ylim(0,1.1)+
+    theme(legend.position = c(0.2,0.5),
           legend.direction = "horizontal",
           strip.text.y = element_blank())+
     guides(fill=guide_legend(title="age"))+
@@ -1419,13 +1420,122 @@ boussard2_data %>% mutate(brainsize=as.factor(brainsize)) %>%
 ```
 
 
-```{r, fig.cap='Bayesian estimation of paramteres to the Boussard *et al* 2021 data set. Light and dark grey bands correspond to the 50 and 90\\% credible interval'}
+```{r, fig.cap='Bayesian estimation of parameters to the Boussard *et al* 2021 data set. Light and dark grey bands correspond to the 50 and 90\\% credible interval'}
 include_graphics("images/boussard2intervals_col.png")
 ```
 
 
 ```{r,fig.cap='Posterior predictive checks of the bayesian estimation. Points correspond to Boussard data-set. Light and dark coloured bands correspond to the 50 and 90\\% credible interval predicted by the model'}
 include_graphics("images/boussard2_ppchecks_colour.png")
+```
+
+## Fitting the model with 2 treatment effects influencing the temperature parameter
+# Boussard [-@boussard_Link_2021] brain size *v.s.* age 
+
+As another example I show now results from fitting the model to the Boussard 
+[-@boussard_Link_2021] data-set. Where fish from the to brain size experimental 
+groups are assessed on the effect of age in a single reversal learning task. 
+
+```{r, fig.cap='Performance of fish according to the two experimental groups  - brain size and age - along the initial and reversal learning'}
+
+## Read the data 
+
+boussard2_data <- read_excel(here("data","boussard_2021",
+                                 "Cognitive_ageing_original_data.xlsx"),
+                             sheet = 'FL orig. data',
+                             col_types = c('text','numeric','numeric',
+                                           'numeric','text','text','text',
+                                           'text','numeric','numeric'))
+boussard2_data <- boussard2_data %>% mutate(reversal=0)
+
+boussard2_data_b <- read_excel(here("data","boussard_2021",
+                                  "Cognitive_ageing_original_data.xlsx"),
+                             sheet = 'RL orig. data',
+                             col_types = c('text','numeric','numeric',
+                                           'numeric','text','text','text',
+                                           'text','numeric','numeric'))
+
+boussard2_data_b <- boussard2_data_b %>% mutate(reversal=1)
+
+boussard2_data <- as.data.table(boussard2_data)
+
+boussard2_data_b <- as.data.table(boussard2_data_b)
+
+# boussard2_data$tankID %>% unique() %>% length()
+
+boussard2_data <-boussard2_data[tankID!="57"]
+
+# boussard2_data_b$tankID %>% unique() %>% length()
+
+boussard2_data <- rbind(boussard2_data,boussard2_data_b) 
+
+# boussard2_data[,unique(brainsize)]
+# boussard2_data[,unique(age)]
+
+boussard2_data[,age.int:=lapply(age,function(x){
+  switch(x,young=1,middle=2,old=3)})]
+boussard2_data[,brainsize:=brainsize+1]
+
+boussard2_data %>% mutate(brainsize=factor(brainsize,labels=c("small","large")),
+                          reversal=factor(reversal,labels = c("initial", "reversal"))) %>%
+  ggplot(aes(y=success,x=trial,col=age,fill=age))+
+    stat_summary(fun = mean,geom = "point")+
+    stat_summary(fun = mean,geom = "line")+
+    geom_hline(yintercept = c(0.5,1),col="grey")+
+    ylim(0,1.1)+
+    theme(legend.position = c(0.2,0.5),
+          legend.direction = "horizontal")+
+    guides(fill=guide_legend(title="age"))+
+    ggtitle("Repeated reversal vs  brainsize")+
+    facet_grid(brainsize~reversal,scales = "free_x")
+
+```
+
+
+```{r, fig.cap='Bayesian estimation of parameters to the Boussard *et al* 2021 data set. Light and dark grey bands correspond to the 50 and 90\\% credible interval'}
+include_graphics("images/boussard2intervals_tau.png")
+```
+
+
+```{r,fig.cap='Posterior predictive checks of the bayesian estimation. Points correspond to Boussard data-set. Light and dark coloured bands correspond to the 50 and 90\\% credible interval predicted by the model'}
+include_graphics("images/boussard2_ppchecks_tau.png")
+```
+
+## Fitting the model with 2 treatment effects influencing the temperature parameter and random effects on the speed of learning
+# Boussard [-@boussard_Link_2021] brain size *v.s.* age 
+
+As another example I show now results from fitting the model to the Boussard 
+[-@boussard_Link_2021] data-set. Where fish from the to brain size experimental 
+groups are assessed on the effect of age in a single reversal learning task. 
+
+
+
+```{r, fig.cap='Bayesian estimation of parameters to the Boussard *et al* 2021 data set. Light and dark grey bands correspond to the 50 and 90\\% credible interval'}
+include_graphics("images/boussard2intervals_tau_alpha.png")
+```
+
+
+```{r,fig.cap='Posterior predictive checks of the bayesian estimation. Points correspond to Boussard data-set. Light and dark coloured bands correspond to the 50 and 90\\% credible interval predicted by the model'}
+include_graphics("images/boussard2_ppchecks_tau_alpha.png")
+```
+
+
+## Fitting the model with 2 treatment effects influencing the speed of learning  and random effects on the temperature parameter
+# Boussard [-@boussard_Link_2021] brain size *v.s.* age 
+
+As another example I show now results from fitting the model to the Boussard 
+[-@boussard_Link_2021] data-set. Where fish from the to brain size experimental 
+groups are assessed on the effect of age in a single reversal learning task. 
+
+
+
+```{r, fig.cap='Bayesian estimation of parameters to the Boussard *et al* 2021 data set. Light and dark grey bands correspond to the 50 and 90\\% credible interval'}
+include_graphics("images/boussard2intervals_alpha_tau.png")
+```
+
+
+```{r,fig.cap='Posterior predictive checks of the bayesian estimation. Points correspond to Boussard data-set. Light and dark coloured bands correspond to the 50 and 90\\% credible interval predicted by the model'}
+include_graphics("images/boussard2_ppchecks_alpha_tau.png")
 ```
 
 
