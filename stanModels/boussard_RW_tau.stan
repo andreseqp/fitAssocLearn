@@ -8,7 +8,7 @@ data {
   int<lower=0> Tr; // number of trials in total
   array[Tr,2] int <lower=0,upper=1> block_r;    // Reward on each trial
   array[N] int treat_ID;    // treatment ID for the second option
-  array[N,Tr] int <lower=-1, upper=1> y;    // choice
+  array[N,Tr] int <lower=0, upper=1> y;    // choice
 }
 
 transformed data {
@@ -19,13 +19,13 @@ transformed data {
 
 parameters {
   // Individual parameters
-  vector[N] alphasID;
-  real tau;
+  vector[N] tauID;
+  real alpha;
   // treatment parameres
-  vector[B] alphasT;
+  vector[B] tausT;
   // hyper-parameters
-  real mu_alpha;
-  real <lower=0> sigma_a;
+  real mu_tau;
+  real <lower=0> sigma_t;
 }
 // transformed parameters {
 //   // Transform subject-level raw parameters
@@ -39,13 +39,13 @@ parameters {
 // }
 transformed parameters {
   // Transform subject-level raw parameters
-  vector <lower=0, upper=1>[N]  alphasID_t;
-  real tau_t;
+  vector <lower=0>[N]  tausID_t;
+  real alpha_t;
   for (i in 1:N) {
-    alphasID_t[i]  = inv_logit(mu_alpha + alphasT[treat_ID[i]+1] 
-                                      + sigma_a*alphasID[i]);
+    tausID_t[i]  = exp(mu_tau + tausT[treat_ID[i]+1] 
+                                      + sigma_t*tauID[i]);
   }
-  tau_t = exp(tau);
+  alpha_t = inv_logit(alpha);
 }
 model {
   // Prediction error
@@ -56,17 +56,17 @@ model {
   vector[2] est_values; 
   
   // Hyperparameters
-  mu_alpha  ~ normal(0, 2);
+  mu_tau  ~ normal(0, 2);
   //print("target = ", target());
-  sigma_a ~ normal(0, 2);
+  sigma_t ~ normal(0, 2);
   //print("target = ", target());
   
   // Individual parameters
   // alphasT  ~ normal(mu_alpha, sigma_a);
-  alphasT  ~ normal(0, 2);
-  alphasID  ~ normal(0, 2);
+  tausT  ~ normal(0, 2);
+  tauID  ~ normal(0, 2);
     // group parameters
-  tau ~ normal(0, 2);
+  alpha ~ normal(0, 2);
 
   for (ind in 1:N){
     // Initialize with 0 estimated values
@@ -74,24 +74,26 @@ model {
     
     for (tr in 1:Tr){
       // Calculate probabilities based on values
-      probs[2] = inv_logit((est_values[2]-est_values[1])*tau_t);
+      probs[2] = inv_logit((est_values[2]-est_values[1])*tausID_t[ind]);
       probs[1] = 1-probs[2];
       
-      if(y[ind,tr]==-1){
-          
-      }
+      // Aquí vamos arreglando problemitas
+      // choice[ind,tr]-1 ~ bernoulli(probs[2]); 
+      // pred_error = reward[ind,tr]  - est_values[choice[ind,tr]];
+      // est_values[choice[ind,tr]] += alphasID_t[ind]*pred_error;
+      
       if(block_r[tr,2]==1) { // if the second option yields reward
         // use probability of second option to calculate loglikelihood of success
         y[ind,tr] ~ bernoulli(probs[2]); 
         
         if(y[ind,tr]==1){ // if choice was succesfull
           pred_error = block_r[tr,2]  - est_values[2];
-          est_values[2] += alphasID_t[ind]*pred_error;
+          est_values[2] += alpha_t*pred_error;
           // update action values for option 2
         }
         else{ // if choice was unsuccesfull
           pred_error =  block_r[tr,1]- est_values[1];
-          est_values[1] += alphasID_t[ind]*pred_error;
+          est_values[1] += alpha_t*pred_error;
           // update action values for option 1
         }
       }
@@ -100,12 +102,12 @@ model {
         y[ind,tr] ~ bernoulli(probs[1]);
         if(y[ind,tr]==1){ // if choice was successful
           pred_error =  block_r[tr,1] - est_values[1];
-          est_values[1] += alphasID_t[ind]*pred_error;
+          est_values[1] += alpha_t*pred_error;
           // update action values for option 1
         }
         else{ // if choice was unsuccesfull
           pred_error = block_r[tr,2] - est_values[2];
-          est_values[2] += alphasID_t[ind]*pred_error;
+          est_values[2] += alpha_t*pred_error;
           // update action values for option 2
         }
       }
@@ -133,19 +135,19 @@ generated quantities {
     est_values_p = initV;
     log_lik[ind] = 0;
     for (tr in 1:Tr){
-      probs_p[2] = inv_logit((est_values_p[2]-est_values_p[1])*tau_t);
+      probs_p[2] = inv_logit((est_values_p[2]-est_values_p[1])*tausID_t[ind]);
       probs_p[1] = 1-probs_p[2];
       if(block_r[tr,2]==1) {
         log_lik[ind] += bernoulli_lpmf(y[ind, tr] | probs_p[2]);
         y_pred[ind,tr] = bernoulli_rng(probs_p[2]);
         if(y_pred[ind,tr]==1){
           pred_error_p = block_r[tr,2]  - est_values_p[2];
-          est_values_p[2] += alphasID_t[ind]*pred_error_p;
+          est_values_p[2] += alpha_t*pred_error_p;
           // update action values
         }
         else{
           pred_error_p =  block_r[tr,1]- est_values_p[1];
-          est_values_p[1] += alphasID_t[ind]*pred_error_p;
+          est_values_p[1] += alpha_t*pred_error_p;
           // update action values
         }
       }
@@ -154,12 +156,12 @@ generated quantities {
         y_pred[ind,tr] = bernoulli_rng(probs_p[1]);
         if(y_pred[ind,tr]==1){
           pred_error_p =  block_r[tr,1] - est_values_p[1];
-          est_values_p[1] += alphasID_t[ind]*pred_error_p;
+          est_values_p[1] += alpha_t*pred_error_p;
           // update action values
         }
         else{
           pred_error_p = block_r[tr,2] - est_values_p[2];
-          est_values_p[2] += alphasID_t[ind]*pred_error_p;
+          est_values_p[2] += alpha_t*pred_error_p;
           // update action values
         }
       }

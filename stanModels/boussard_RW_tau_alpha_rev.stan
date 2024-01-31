@@ -8,7 +8,6 @@ data {
   int<lower=0> Tr; // number of trials per reversal
   int<lower=0> Rev; // number of reversal blocks
   int<lower=0> TotTr; // number of total trials
-  real <lower=0> initProp;
   array[TotTr,2] int <lower=0,upper=1> block_r;    // Reward on each trial
   array[N] int treat_ID;    // treatment ID for the second option
   array[N,TotTr] int <lower=0, upper=1> y;    // choice
@@ -16,34 +15,40 @@ data {
 
 transformed data {
   // Default value for (re-)initializing parameter vectors
-  // vector[2] initV;
-  // initV = rep_vector(0.0, 2);
-  real logodds_init = logit(initProp);
+  vector[2] initV;
+  initV = rep_vector(0.0, 2);
 }
 
 parameters {
   // Individual parameters
+  vector[N] tausID;
   vector[N] alphasID;
   vector[Rev] alphasRev;
-  real tau;
+  vector[Rev] tausRev;
+  vector<lower=0>[Rev]  tauSigmasRev;
+  vector<lower=0>[Rev]  alphaSigmasRev;
   // treatment parameres
-  vector[B] alphasT;
+  vector[B] tausT;
+  
   // hyper-parameters
-  real mu_alpha;
-  real <lower=0> sigma_a;
+  // vector[2] mus;
+  // vector<lower=0> [2] sigmas;
 }
 
 transformed parameters {
   // Transform subject-level raw parameters
-  array[N,Rev] real <lower=0, upper=1>  alphasID_t;
-  real tau_t;
+  array[N,Rev] real <lower=0>  tausID_t;
+  array[N,Rev] real <lower=0,upper=1>  alphasID_t;
   for (i in 1:N) {
     for(j in 1:Rev){
-      alphasID_t[i,j]  = inv_logit(mu_alpha + alphasT[treat_ID[i]+1] 
-                                      + sigma_a*alphasID[i]+alphasRev[j]); 
+      // tausID_t[i,j]  = exp(tausT[treat_ID[i]+1] 
+      //                                 + sigmas[1]*tausID[i]+tausRev[j]);
+      // alphasID_t[i,j]  = inv_logit(sigmas[2]*alphasID[i]+alphasRev[j]);
+      tausID_t[i,j]  = exp(tausT[treat_ID[i]+1] 
+                                      + tauSigmasRev[j]*tausID[i]+tausRev[j]);
+      alphasID_t[i,j]  = inv_logit(alphaSigmasRev[j]*alphasID[i]+alphasRev[j]);
     }
   }
-  tau_t = exp(tau);
 }
 model {
   // total trials
@@ -58,30 +63,31 @@ model {
   
   
   // Hyperparameters
-  mu_alpha  ~ normal(0, 10);
+  // mus  ~ normal(0, 10);
   //print("target = ", target());
-  sigma_a ~ normal(0, 10);
+  // sigmas ~ normal(0, 10);
+  tauSigmasRev ~ normal(0,10);
+  alphaSigmasRev ~ normal(0,10);
   //print("target = ", target());
+  tausRev ~ normal(0,10);
   alphasRev ~ normal(0,10);
   
   // Individual parameters
-  // alphasT  ~ normal(mu_alpha, sigma_a);
-  alphasT  ~ normal(0, 10);
+  tausT  ~ normal(0, 10);
+  tausID  ~ normal(0, 10);
   alphasID  ~ normal(0, 10);
-    // group parameters
-  tau ~ normal(0, 10);
-
+  
   for (ind in 1:N){
     // Initialize with 0 estimated values
-    est_values[2] = 0;
-    est_values[1] = est_values[2] - logodds_init/tau_t;
+    est_values = initV;
     for (revBlock in 1:Rev){
       
       for (tr in 1:Tr){
         // id of the total trial
         totTrial = (revBlock-1)*Tr+tr;
         // Calculate probabilities based on values
-        probs[2] = inv_logit((est_values[2]-est_values[1])*tau_t);
+        probs[2] = 
+          inv_logit((est_values[2]-est_values[1])*tausID_t[ind,revBlock]);
         probs[1] = 1-probs[2];
         
         // choice[ind,tr]-1 ~ bernoulli(probs[2]); 
@@ -140,14 +146,13 @@ generated quantities {
   }
 
   for (ind in 1:N){
-    // est_values_p = initV;
-    est_values_p[2] = 0;
-    est_values_p[1] = est_values_p[2] - logodds_init/tau_t;
+    est_values_p = initV;
     log_lik[ind] = 0;
     for (revBlock in 1:Rev){
       for (tr in 1:Tr){
         totTrial_p = (revBlock-1)*Tr+tr;
-        probs_p[2] = inv_logit((est_values_p[2]-est_values_p[1])*tau_t);
+        probs_p[2] = 
+          inv_logit((est_values_p[2]-est_values_p[1])*tausID_t[ind,revBlock]);
         probs_p[1] = 1-probs_p[2];
         if(block_r[totTrial_p,2]==1) {
           log_lik[ind] += bernoulli_lpmf(y[ind, totTrial_p] | probs_p[2]);
