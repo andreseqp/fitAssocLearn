@@ -30,6 +30,8 @@ library(knitr)
 library(bayesplot)
 library(stringi)
 library(cmdstanr)
+stan_path <- here("..","cmdstan","cmdstan-2.32.2")
+set_cmdstan_path(stan_path)
 theme_set(new = theme_classic())
 
 ```
@@ -663,145 +665,147 @@ include_graphics(here('images',"boussard_short_0_tau.png"))
 ```{r}
 ## Let´s fit a different tau for each reversal block ---------------------------
 
-# boussard_data_short <- boussard_data[reversal<2,]
-# 
-# # get number of individuals
-# Nind <- boussard_data_short[,tankID] %>% unique() %>% length()
-# 
-# # get number of treatment groups
-# Ntreat <- boussard_data_short[,brainsize] %>% unique() %>% length()
-# 
-# # get total number of trials (including all reversals)
-# Ntrials <- boussard_data_short[,interaction(trial,reversal)] %>%
-#   unique() %>% length()
-# 
-# Nrev <- boussard_data_short[,reversal] %>%
-#   unique() %>% length()
-# 
-# NtriRev <- Ntrials/Nrev
-# 
-# setorder(boussard_data_short,tankID,reversal,trial)
-# 
-# # get the treatment for all individuals
-# treat_Inds <- boussard_data_short[,unique(brainsize),by=tankID][,V1]  
-# 
-# # set the reversal structure 
-# block_r <-cbind(c(rep(c(0,1),each=30,
-#                       times=6)[1:dim(boussard_data_short[tankID==1])[1]]),
-#                 c(rep(c(1,0),each=30,
-#                       times=6)[1:dim(boussard_data_short[tankID==1])[1]]))
-# 
-# 
-# # Get a unique ID for trials along the reversal blocks
-# boussard_data_short[,trial.long:=interaction(reversal,trial)]
-# 
-# # Set NA as failure to choose the rewarding option
-# boussard_data_short[is.na(success),success:=0]
-# 
-# # Transform the success variable, to fit stan model
-# boussard_wide<-dcast(boussard_data_short[,.(trial.long,tankID,success)],
-#                      trial.long~tankID,value.var = "success")
-# 
-# boussard_wide[,trial.long:=NULL]
-# 
-# boussard_wide<-t(boussard_wide)
-# 
-# str(boussard_wide)
-# 
-# boussard_RW_tau_rev<-cmdstan_model(here("stanModels","boussard_RW_tau_rev.stan"))
-# 
-# dim(block_r)
-# 
-# # sample from posterior
-# fit_boussard_RW_short_tau_rev <- boussard_RW_tau_rev$sample(list(N=Nind,B=Ntreat,Tr=NtriRev,
-#                                                          Rev=Nrev,TotTr=Ntrials,
-#                                                          block_r=block_r,treat_ID=treat_Inds,
-#                                                          y=boussard_wide),
-#                                                     parallel_chains = getOption("mc.cores", 5),
-#                                                     chains = 5)
-# 
-# # Save samples to file
+boussard_data_short <- boussard_data[reversal<2,]
+
+# get number of individuals
+Nind <- boussard_data_short[,tankID] %>% unique() %>% length()
+
+# get number of treatment groups
+Ntreat <- boussard_data_short[,brainsize] %>% unique() %>% length()
+
+# get total number of trials (including all reversals)
+Ntrials <- boussard_data_short[,interaction(trial,reversal)] %>%
+  unique() %>% length()
+
+Nrev <- boussard_data_short[,reversal] %>%
+  unique() %>% length()
+
+NtriRev <- Ntrials/Nrev
+
+setorder(boussard_data_short,tankID,reversal,trial)
+
+# get the treatment for all individuals
+treat_Inds <- boussard_data_short[,unique(brainsize),by=tankID][,V1]
+
+# set the reversal structure
+block_r <-cbind(c(rep(c(0,1),each=30,
+                      times=6)[1:dim(boussard_data_short[tankID==1])[1]]),
+                c(rep(c(1,0),each=30,
+                      times=6)[1:dim(boussard_data_short[tankID==1])[1]]))
+
+
+# Get a unique ID for trials along the reversal blocks
+boussard_data_short[,trial.long:=interaction(reversal,trial)]
+
+# Set NA as failure to choose the rewarding option
+boussard_data_short[is.na(success),success:=0]
+
+# Transform the success variable, to fit stan model
+boussard_wide<-dcast(boussard_data_short[,.(trial.long,tankID,success)],
+                     trial.long~tankID,value.var = "success")
+
+boussard_wide[,trial.long:=NULL]
+
+boussard_wide<-t(boussard_wide)
+
+str(boussard_wide)
+
+boussard_RW_tau_rev<-cmdstan_model(here("stanModels","boussard_RW_tau_rev.stan"))
+
+dim(block_r)
+
+# sample from posterior
+fit_boussard_RW_short_tau_rev <- boussard_RW_tau_rev$sample(list(N=Nind,B=Ntreat,Tr=NtriRev,
+                                                         Rev=Nrev,TotTr=Ntrials,
+                                                         block_r=block_r,treat_ID=treat_Inds,
+                                                         y=boussard_wide),
+                                                    parallel_chains = getOption("mc.cores", 5),
+                                                    chains = 5)
+
+# Save samples to file
 # fit_boussard_RW_short_tau_rev$save_object(file = "fit_boussard_stan_short_tau_rev.RDS")
 # 
 # fit_boussard_RW_short_tau_rev<-readRDS("fit_boussard_stan_short_tau_rev.RDS")
-# 
-# # Use shinystan to evaluate the performance of the model
-# # launch_shinystan(fit_boussard_RW_short_tau_rev)
-# 
-# pars2plot <- c("alpha", "mu_tau", "tausT[1]", "tausT[2]",
-#                "sigma_t")
-# 
-# posteriors <- fit_boussard_RW_short_tau_rev$draws(variables = pars2plot)
-# posteriorsRev <- fit_boussard_RW_short_tau_rev$draws(variables = "tausRev")
-# 
-# # png("boussard_mcmc_interv_rev.png")
-# # dev.off()
-# 
-# preds <- fit_boussard_RW_short_tau_rev$draws(variables = "y_pred")
-# 
-# preds_df <- posterior::as_draws_df(preds)
-# 
-# preds_long <- reshape2::melt(preds_df,id=c('.chain','.iteration'),
-#                              measure.vars=grep("y_pred",colnames(preds_df)))
-# 
-# rm(list=c("preds","preds_df"))
-# 
-# preds_long <- as.data.table(preds_long)
-# 
-# preds_long[,c("individual","trial"):=tstrsplit(variable,",")]
-# 
-# preds_long[,variable:=NULL]
-# 
-# preds_long[,`:=`(individual=parse_number(individual),
-#                  trial=parse_number(trial))]
-# 
-# preds_long[,treatment:=as.factor(ifelse(individual<50,0,1))]
-# 
-# 
-# # Average over de MCMC samples
-# mean_ind <- preds_long[,mean(value),by=.(.chain,.iteration,treatment,trial)]
-# 
-# rm(list="preds_long")
-# 
-# 
-# mean_ind <-mean_ind %>%
-#   mutate(reversal= as.integer((trial-1)/30)) %>%
-#   mutate(RTrial=((trial-1) %% 30)+1)
-# 
-# colnames(mean_ind) <- c("chain","iteration","brainsize","Ttrial","success",
-#                         "reversal","trial")
 
+# Use shinystan to evaluate the performance of the model
+# launch_shinystan(fit_boussard_RW_short_tau_rev)
 
-# png(here('images',"boussard_short_01_tau.png"))
-# cowplot::plot_grid(nrow = 2,
-#   cowplot::plot_grid(mcmc_intervals(posteriors),
-#                      mcmc_intervals(posteriorsRev),ncol = 2),
-#   boussard_data_short %>% mutate(brainsize=as.factor(brainsize)) %>%
-#     ggplot(aes(y=success,x=trial,col=brainsize))+
-#     stat_summary(fun = mean,geom = "point")+
-#     stat_summary(fun = mean,geom = "line")+
-#     # geom_point()+
-#     theme(legend.position = c(0.5,0.6),
-#           legend.direction = "horizontal")+
-#     scale_x_continuous(breaks=c(1,15,30))+
-#     guides(fill=guide_legend(title="Brain size"))+
-#     ggtitle("Repeated reversal vs brainsize")+
-#     facet_grid(brainsize~reversal)+
-#     stat_summary(data=mean_ind,aes(x=trial,y=success,col=as.factor(brainsize)),
-#                  geom="ribbon",alpha = 0.2,fun.max = function(x){
-#                    quantile(x,0.95)},
-#                  fun.min = function(x){
-#                    quantile(x,0.05)},colour=NA)+
-#     stat_summary(data=mean_ind,aes(x=trial,y=success,col=as.factor(brainsize)),
-#                  geom="ribbon",alpha = 0.5,fun.max = function(x){
-#                    quantile(x,0.75)},
-#                  fun.min = function(x){
-#                    quantile(x,0.25)},colour=NA)+
-#     facet_grid(brainsize~reversal)
-# )
+pars2plot <- c("alpha", "mu_tau", "tausT[1]", "tausT[2]",
+               "sigma_t")
+
+posteriors <- fit_boussard_RW_short_tau_rev$draws(variables = pars2plot)
+posteriorsRev <- fit_boussard_RW_short_tau_rev$draws(variables = "tausRev")
+
+interv<-cowplot::plot_grid(mcmc_intervals(posteriors),
+                   mcmc_intervals(posteriorsRev),ncol = 2)
+
+# png("boussard_mcmc_interv_rev.png")
 # dev.off()
 
-include_graphics(here('images',"boussard_short_01_tau.png"))
+preds <- fit_boussard_RW_short_tau_rev$draws(variables = "y_pred")
+
+preds_df <- posterior::as_draws_df(preds)
+
+preds_long <- reshape2::melt(preds_df,id=c('.chain','.iteration'),
+                             measure.vars=grep("y_pred",colnames(preds_df)))
+
+rm(list=c("preds","preds_df"))
+
+preds_long <- as.data.table(preds_long)
+
+preds_long[,c("individual","trial"):=tstrsplit(variable,",")]
+
+preds_long[,variable:=NULL]
+
+preds_long[,`:=`(individual=parse_number(individual),
+                 trial=parse_number(trial))]
+
+preds_long[,treatment:= treat_Inds[individual]]
+
+
+# Average over de MCMC samples
+mean_ind <- preds_long[,mean(value),by=.(.chain,.iteration,treatment,trial)]
+
+rm(list="preds_long")
+
+
+mean_ind <-mean_ind %>%
+  mutate(reversal= as.integer((trial-1)/30)) %>%
+  mutate(RTrial=((trial-1) %% 30)+1)
+
+colnames(mean_ind) <- c("chain","iteration","brainsize","Ttrial","success",
+                        "reversal","trial")
+
+ppchecks_plot<-boussard_data_short %>% mutate(brainsize=as.factor(brainsize)) %>%
+    ggplot(aes(y=success,x=trial,col=brainsize))+
+    stat_summary(fun = mean,geom = "point")+
+    stat_summary(fun = mean,geom = "line")+
+    # geom_point()+
+    # theme(legend.position = c(0.6,0.6),
+    #       legend.direction = "vertical",
+    #       strip.text.y = element_blank())+
+    theme(legend.position = "none")+
+    scale_x_continuous(breaks=c(1,15,30))+
+    guides(fill=guide_legend(title="Brain size"))+
+    ggtitle("Repeated reversal vs brainsize")+
+    facet_grid(brainsize~reversal)+
+    stat_summary(data=mean_ind,aes(x=trial,y=success,col=as.factor(brainsize)),
+                 geom="ribbon",alpha = 0.2,fun.max = function(x){
+                   quantile(x,0.95)},
+                 fun.min = function(x){
+                   quantile(x,0.05)},colour=NA)+
+    stat_summary(data=mean_ind,aes(x=trial,y=success,col=as.factor(brainsize)),
+                 geom="ribbon",alpha = 0.5,fun.max = function(x){
+                   quantile(x,0.75)},
+                 fun.min = function(x){
+                   quantile(x,0.25)},colour=NA)+
+    facet_grid(brainsize~reversal)
+
+png(here('images',"boussard_short_01_tau.png"))
+cowplot::plot_grid(nrow = 2,interv,ppchecks_plot)
+dev.off()
+
+# include_graphics(here('images',"boussard_short_01_tau.png"))
 
 ```
 ## Fitting a model with a different \(\tau\) and  \(\alpha\) for each reversal block
@@ -810,157 +814,164 @@ include_graphics(here('images',"boussard_short_01_tau.png"))
 ## Let's fit a different tau and alpha for each reversal block -----------------
 
 
-# boussard_data_short <- boussard_data[reversal<2,]
-# 
-# # get number of individuals
-# Nind <- boussard_data_short[,tankID] %>% unique() %>% length()
-# 
-# # get number of treatment groups
-# Ntreat <- boussard_data_short[,brainsize] %>% unique() %>% length()
-# 
-# # get total number of trials (including all reversals)
-# Ntrials <- boussard_data_short[,interaction(trial,reversal)] %>%
-#   unique() %>% length()
-# 
-# Nrev <- boussard_data_short[,reversal] %>%
-#   unique() %>% length()
-# 
-# NtriRev <- Ntrials/Nrev
-# 
-# setorder(boussard_data_short,tankID,reversal,trial)
-# 
-# # get the treatment for all individuals
-# treat_Inds <- boussard_data_short[,unique(brainsize),by=tankID][,V1]  
-# 
-# # set the reversal structure 
-# block_r <-cbind(c(rep(c(0,1),each=30,
-#                       times=6)[1:dim(boussard_data_short[tankID==1])[1]]),
-#                 c(rep(c(1,0),each=30,
-#                       times=6)[1:dim(boussard_data_short[tankID==1])[1]]))
-# 
-# 
-# # Get a unique ID for trials along the reversal blocks
-# boussard_data_short[,trial.long:=interaction(reversal,trial)]
-# 
-# # Set NA as failure to choose the rewarding option
-# boussard_data_short[is.na(success),success:=0]
-# 
-# # Transform the success variable, to fit stan model
-# boussard_wide<-dcast(boussard_data_short[,.(trial.long,tankID,success)],
-#                      trial.long~tankID,value.var = "success")
-# 
-# boussard_wide[,trial.long:=NULL]
-# 
-# boussard_wide<-t(boussard_wide)
-# 
-# str(boussard_wide)
-# 
-# boussard_RW_tau_alpha_rev<-cmdstan_model(here("stanModels","boussard_RW_tau_alpha_rev.stan"))
-# 
-# dim(block_r)
-# 
-# # sample from posterior
-# fit_boussard_RW_short_tau_alpha_rev <- boussard_RW_tau_alpha_rev$sample(
-#   list(N=Nind,B=Ntreat,Tr=NtriRev,
-#            Rev=Nrev,TotTr=Ntrials,
-#            block_r=block_r,treat_ID=treat_Inds,
-#            y=boussard_wide),
-#       parallel_chains = getOption("mc.cores", 5),
-#       chains = 5)
-# 
-# # Save samples to file
-# # fit_boussard_RW_short_tau_alpha_rev$save_object(file = 
-#   # "fit_boussard_stan_short_tau_alpha_rev.RDS")
-# 
-# # fit_boussard_RW_short_tau_alpha_rev<-readRDS("fit_boussard_stan_short_tau_alpha_rev.RDS")
-# 
-# # Use shinystan to evaluate the performance of the model
-# # launch_shinystan(fit_boussard_RW_short_tau_alpha_rev)
-# 
-# pars2plot <- c("tausT[1]", "tausT[2]")
-# 
-# posteriors <- fit_boussard_RW_short_tau_alpha_rev$draws(variables = pars2plot)
-# posteriorsTRev <- fit_boussard_RW_short_tau_alpha_rev$draws(variables = "tausRev")
-# posteriorsARev <- fit_boussard_RW_short_tau_alpha_rev$draws(variables = "alphasRev")
-# posteriorsSigRev <- 
-#   fit_boussard_RW_short_tau_alpha_rev$draws(variables = c("alphaSigmasRev",
-#                                                           "tauSigmasRev"))
-# 
-# # png("boussard_mcmc_interv_rev.png")
-# interv<-cowplot::plot_grid(mcmc_intervals(posteriors),
-#                    mcmc_intervals(posteriorsTRev),
-#                    mcmc_intervals(posteriorsARev),
-#                    mcmc_intervals(posteriorsSigRev))
-# # dev.off()
-# 
-# 
-# preds <- fit_boussard_RW_short_tau_alpha_rev$draws(variables = "y_pred")
-# 
-# preds_df <- posterior::as_draws_df(preds)
-# 
-# preds_long <- reshape2::melt(preds_df,id=c('.chain','.iteration'),
-#                              measure.vars=grep("y_pred",colnames(preds_df)))
-# 
-# rm(list=c("preds","preds_df"))
-# 
-# preds_long <- as.data.table(preds_long)
-# 
-# preds_long[,c("individual","trial"):=tstrsplit(variable,",")]
-# 
-# preds_long[,variable:=NULL]
-# 
-# preds_long[,`:=`(individual=parse_number(individual),
-#                  trial=parse_number(trial))]
-# 
-# preds_long[,treatment:=as.factor(ifelse(individual<50,0,1))]
-# 
-# 
-# # Average over de MCMC samples
-# mean_ind <- preds_long[,mean(value),by=.(.chain,.iteration,treatment,trial)]
-# 
-# rm(list="preds_long")
-# 
-# 
-# mean_ind_01 <-mean_ind %>%
-#   mutate(reversal= as.integer((trial-1)/30)) %>%
-#   mutate(RTrial=((trial-1) %% 30)+1)
-# 
-# # mean_ind_1[,reversal:=reversal+1]
-# 
-# colnames(mean_ind_01) <- c("chain","iteration","brainsize","Ttrial","success",
-#                         "reversal","trial")
+boussard_data_short <- boussard_data[reversal<3,]
 
-# png(here('images','Boussard_short_alpha_tau_sigma.png'))
-# 
-# cowplot::plot_grid(nrow = 2,
-# interv,
-# boussard_data_short %>% mutate(brainsize=as.factor(brainsize)) %>%
-#     ggplot(aes(y=success,x=trial,col=brainsize))+
-#     stat_summary(fun = mean,geom = "point")+
-#     stat_summary(fun = mean,geom = "line")+
-#     # geom_point()+
-#     # theme(legend.position = c(0.2,0.6),
-#     #       legend.direction = "horizontal",legen)+
-#     scale_x_continuous(breaks=c(1,15,30))+
-#     guides(fill=FALSE)+
-#     ggtitle("Repeated reversal vs brainsize")+
-#     facet_grid(brainsize~reversal)+
-#     stat_summary(data=mean_ind_01,aes(x=trial,y=success,col=as.factor(brainsize)),
-#                  geom="ribbon",alpha = 0.2,fun.max = function(x){
-#                    quantile(x,0.95)},
-#                  fun.min = function(x){
-#                    quantile(x,0.05)},colour=NA)+
-#     stat_summary(data=mean_ind_01,aes(x=trial,y=success,col=as.factor(brainsize)),
-#                  geom="ribbon",alpha = 0.5,fun.max = function(x){
-#                    quantile(x,0.75)},
-#                  fun.min = function(x){
-#                    quantile(x,0.25)},colour=NA)+
-#     facet_grid(brainsize~reversal)
-# )
-# 
+# get number of individuals
+Nind <- boussard_data_short[,tankID] %>% unique() %>% length()
+
+# get number of treatment groups
+Ntreat <- boussard_data_short[,brainsize] %>% unique() %>% length()
+
+# get total number of trials (including all reversals)
+Ntrials <- boussard_data_short[,interaction(trial,reversal)] %>%
+  unique() %>% length()
+
+Nrev <- boussard_data_short[,reversal] %>%
+  unique() %>% length()
+
+NtriRev <- Ntrials/Nrev
+
+setorder(boussard_data_short,tankID,reversal,trial)
+
+# get the treatment for all individuals
+treat_Inds <- boussard_data_short[,unique(brainsize),by=tankID][,V1]
+
+# set the reversal structure
+block_r <-cbind(c(rep(c(0,1),each=30,
+                      times=6)[1:dim(boussard_data_short[tankID==1])[1]]),
+                c(rep(c(1,0),each=30,
+                      times=6)[1:dim(boussard_data_short[tankID==1])[1]]))
+
+
+# Get a unique ID for trials along the reversal blocks
+boussard_data_short[,trial.long:=interaction(reversal,trial)]
+
+# Set NA as failure to choose the rewarding option
+boussard_data_short[is.na(success),success:=0]
+
+# Transform the success variable, to fit stan model
+boussard_wide<-dcast(boussard_data_short[,.(trial.long,tankID,success)],
+                     trial.long~tankID,value.var = "success")
+
+boussard_wide[,trial.long:=NULL]
+
+boussard_wide<-t(boussard_wide)
+
+str(boussard_wide)
+
+boussard_RW_tau_alpha_rev<-cmdstan_model(here("stanModels",
+                                        "boussard_RW_tau_alpha_rev.stan"))
+
+dim(block_r)
+
+# sample from posterior
+fit_boussard_RW_short_tau_alpha_rev <- boussard_RW_tau_alpha_rev$sample(
+  list(N=Nind,B=Ntreat,Tr=NtriRev,
+           Rev=Nrev,TotTr=Ntrials,#initProp=0.5,
+           block_r=block_r,treat_ID=treat_Inds,
+           y=boussard_wide),
+      parallel_chains = getOption("mc.cores", 5),
+      chains = 1,iter_sampling = 200)
+
+# Save samples to file
+# fit_boussard_RW_short_tau_alpha_rev$save_object(file =
+  # "fit_boussard_stan_short_tau_alpha_rev.RDS")
+
+# fit_boussard_RW_short_tau_alpha_rev<-readRDS("fit_boussard_stan_short_tau_alpha_rev.RDS")
+
+# Use shinystan to evaluate the performance of the model
+# launch_shinystan(fit_boussard_RW_short_tau_alpha_rev)
+
+parsTau2plot <- c("tauT1","mus[2]","tausRev")
+parsAlpha2plot <- c("mus[1]","alphasRev")
+parssigmas2plot <- c("sigmas[1]","sigmas[2]")
+# pars2plot <- c("tauT1","mus[1]","mus[2]","sigmas[1]","sigmas[2]")
+
+posteriorsTau <- fit_boussard_RW_short_tau_alpha_rev$draws(variables = parsTau2plot)
+posteriorsAlpha <- fit_boussard_RW_short_tau_alpha_rev$draws(variables = parsAlpha2plot)
+posteriorsSigma <- fit_boussard_RW_short_tau_alpha_rev$draws(variables = parssigmas2plot)
+
+# png("boussard_mcmc_interv_rev.png")
+interv<-cowplot::plot_grid(ncol = 3,mcmc_intervals(posteriorsTau),
+                   mcmc_intervals(posteriorsAlpha),
+                   mcmc_intervals(posteriorsSigma)
+ )
 # dev.off()
 
-include_graphics(here('images','Boussard_short_alpha_tau_sigma.png'))
+
+preds <- fit_boussard_RW_short_tau_alpha_rev$draws(variables = "y_pred")
+
+preds_df <- posterior::as_draws_df(preds)
+
+preds_long <- reshape2::melt(preds_df,id=c('.chain','.iteration'),
+                             measure.vars=grep("y_pred",colnames(preds_df)))
+
+rm(list=c("preds","preds_df"))
+
+preds_long <- as.data.table(preds_long)
+
+preds_long[,c("individual","trial"):=tstrsplit(variable,",")]
+
+preds_long[,variable:=NULL]
+
+preds_long[,`:=`(individual=parse_number(individual),
+                 trial=parse_number(trial))]
+
+preds_long[,treatment:= treat_Inds[individual]]
+
+
+# Average over de MCMC samples
+mean_ind <- preds_long[,mean(value),by=.(.chain,.iteration,treatment,trial)]
+
+rm(list="preds_long")
+
+
+mean_ind_01 <-mean_ind %>%
+  mutate(reversal= as.integer((trial-1)/30)) %>%
+  mutate(RTrial=((trial-1) %% 30)+1)
+
+# mean_ind_1[,reversal:=reversal+1]
+
+colnames(mean_ind_01) <- c("chain","iteration","brainsize","Ttrial","success",
+                        "reversal","trial")
+
+
+
+ppcheks_plot <- boussard_data_short %>% mutate(brainsize=as.factor(brainsize)) %>%
+    ggplot(aes(y=success,x=trial,col=brainsize))+
+    stat_summary(fun = mean,geom = "point")+
+    stat_summary(fun = mean,geom = "line")+
+    geom_hline(yintercept = 0.5)+
+    # theme(legend.position = c(0.6,0.6),
+    #           legend.direction = "vertical",
+    #           strip.text.y = element_blank())+
+    theme(legend.position = "none")+
+    scale_x_continuous(breaks=c(1,15,30))+
+    guides(fill=none)+
+    ggtitle("Repeated reversal vs brainsize")+
+    facet_grid(brainsize~reversal)+
+    stat_summary(data=mean_ind_01,aes(x=trial,y=success,col=as.factor(brainsize)),
+                 geom="ribbon",alpha = 0.2,fun.max = function(x){
+                   quantile(x,0.95)},
+                 fun.min = function(x){
+                   quantile(x,0.05)},colour=NA)+
+    stat_summary(data=mean_ind_01,aes(x=trial,y=success,col=as.factor(brainsize)),
+                 geom="ribbon",alpha = 0.5,fun.max = function(x){
+                   quantile(x,0.75)},
+                 fun.min = function(x){
+                   quantile(x,0.25)},colour=NA)+
+    facet_grid(brainsize~reversal)
+
+png(here('images','Boussard_short_alpha_tau_sigma.png'))
+
+cowplot::plot_grid(nrow = 2,
+interv,
+ppcheks_plot
+)
+
+dev.off()
+
+# include_graphics(here('images','Boussard_short_alpha_tau_sigma.png'))
 # png("boussard_ppchecks.png")
 # cowplot::plot_grid(nrow = 2,
 #   boussard_data_short %>% mutate(brainsize=as.factor(brainsize)) %>%

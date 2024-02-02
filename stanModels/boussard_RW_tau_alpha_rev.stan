@@ -8,6 +8,7 @@ data {
   int<lower=0> Tr; // number of trials per reversal
   int<lower=0> Rev; // number of reversal blocks
   int<lower=0> TotTr; // number of total trials
+  // real <lower=0> initProp;
   array[TotTr,2] int <lower=0,upper=1> block_r;    // Reward on each trial
   array[N] int treat_ID;    // treatment ID for the second option
   array[N,TotTr] int <lower=0, upper=1> y;    // choice
@@ -17,22 +18,23 @@ transformed data {
   // Default value for (re-)initializing parameter vectors
   vector[2] initV;
   initV = rep_vector(0.0, 2);
+  // real logodds_init = logit(initProp);
 }
 
 parameters {
+  // treatment parameres
+  real tauT1;
+  // Block parameters
+  vector[Rev] alphasRev;
+  vector[Rev] tausRev;
+  // hyper-parameters
+  vector[2] mus; 
+  // 1: alpha, 2: tau
+  vector<lower=0> [2] sigmas;
+  // real alphaT1,
   // Individual parameters
   vector[N] tausID;
   vector[N] alphasID;
-  vector[Rev] alphasRev;
-  vector[Rev] tausRev;
-  vector<lower=0>[Rev]  tauSigmasRev;
-  vector<lower=0>[Rev]  alphaSigmasRev;
-  // treatment parameres
-  vector[B] tausT;
-  
-  // hyper-parameters
-  // vector[2] mus;
-  // vector<lower=0> [2] sigmas;
 }
 
 transformed parameters {
@@ -41,12 +43,10 @@ transformed parameters {
   array[N,Rev] real <lower=0,upper=1>  alphasID_t;
   for (i in 1:N) {
     for(j in 1:Rev){
-      // tausID_t[i,j]  = exp(tausT[treat_ID[i]+1] 
-      //                                 + sigmas[1]*tausID[i]+tausRev[j]);
-      // alphasID_t[i,j]  = inv_logit(sigmas[2]*alphasID[i]+alphasRev[j]);
-      tausID_t[i,j]  = exp(tausT[treat_ID[i]+1] 
-                                      + tauSigmasRev[j]*tausID[i]+tausRev[j]);
-      alphasID_t[i,j]  = inv_logit(alphaSigmasRev[j]*alphasID[i]+alphasRev[j]);
+      alphasID_t[i,j]  = inv_logit(mus[1]+ alphasRev[j]+
+                          sigmas[1]*alphasID[i]);
+      tausID_t[i,j]  = exp(mus[2]+treat_ID[i]*tauT1 +tausRev[j]+
+                          sigmas[2]*tausID[i]);
     }
   }
 }
@@ -63,23 +63,23 @@ model {
   
   
   // Hyperparameters
-  // mus  ~ normal(0, 10);
-  //print("target = ", target());
-  // sigmas ~ normal(0, 10);
-  tauSigmasRev ~ normal(0,10);
-  alphaSigmasRev ~ normal(0,10);
-  //print("target = ", target());
+  mus  ~ normal(0, 10);
+  sigmas ~ normal(0, 10);
+  
+  //Block parameters
   tausRev ~ normal(0,10);
   alphasRev ~ normal(0,10);
-  
+  // Treat parameters
+  tauT1  ~ normal(0, 10);
   // Individual parameters
-  tausT  ~ normal(0, 10);
   tausID  ~ normal(0, 10);
   alphasID  ~ normal(0, 10);
   
   for (ind in 1:N){
     // Initialize with 0 estimated values
     est_values = initV;
+    // est_values[2] = 0;
+    // est_values[1] = est_values[2] - logodds_init/tausID_t[ind,1];
     for (revBlock in 1:Rev){
       
       for (tr in 1:Tr){
@@ -89,10 +89,6 @@ model {
         probs[2] = 
           inv_logit((est_values[2]-est_values[1])*tausID_t[ind,revBlock]);
         probs[1] = 1-probs[2];
-        
-        // choice[ind,tr]-1 ~ bernoulli(probs[2]); 
-        // pred_error = reward[ind,tr]  - est_values[choice[ind,tr]];
-        // est_values[choice[ind,tr]] += alphasID_t[ind]*pred_error;
         
         if(block_r[totTrial,2]==1) { // if the second option yields reward
           // use probability of second option to calculate loglikelihood of success
@@ -125,6 +121,9 @@ model {
           }
         }
       } // end of trials loop
+      // print("ind: ",ind);
+      // print("block: ", revBlock);
+      // print("est. Vals. :",est_values[1]," ",est_values[2]);
     } // end of the reversals loop
   } // end of inddividuals loop
 } // end of model block
@@ -147,6 +146,8 @@ generated quantities {
 
   for (ind in 1:N){
     est_values_p = initV;
+    // est_values_p[2] = 0;
+    // est_values_p[1] = est_values_p[2] - logodds_init/tausID_t[ind,1];
     log_lik[ind] = 0;
     for (revBlock in 1:Rev){
       for (tr in 1:Tr){
@@ -182,7 +183,10 @@ generated quantities {
             // update action values
           }
         }
-      } //end of reversal loop
-    } // end of trials loop
-  } // end of inddividuals loop
+      } //end of trials loop
+      // print("ind: ",ind);
+      // print("block: ", revBlock);
+      // print("est. Vals.:",est_values_p[1]," ",est_values_p[2]);
+    } // end of reversal loop
+  } // end of individuals loop
 } // end of model block

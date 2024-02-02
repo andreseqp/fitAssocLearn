@@ -72,7 +72,7 @@ model {
   tau ~ normal(0, 10);
 
   for (ind in 1:N){
-    // Initialize with 0 estimated values
+    // Initialize estimated values according to the initial prob
     est_values[2] = 0;
     est_values[1] = est_values[2] - logodds_init/tau_t;
     for (revBlock in 1:Rev){
@@ -83,10 +83,6 @@ model {
         // Calculate probabilities based on values
         probs[2] = inv_logit((est_values[2]-est_values[1])*tau_t);
         probs[1] = 1-probs[2];
-        
-        // choice[ind,tr]-1 ~ bernoulli(probs[2]); 
-        // pred_error = reward[ind,tr]  - est_values[choice[ind,tr]];
-        // est_values[choice[ind,tr]] += alphasID_t[ind]*pred_error;
         
         if(block_r[totTrial,2]==1) { // if the second option yields reward
           // use probability of second option to calculate loglikelihood of success

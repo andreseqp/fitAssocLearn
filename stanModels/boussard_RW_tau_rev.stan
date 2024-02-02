@@ -82,10 +82,6 @@ model {
           inv_logit((est_values[2]-est_values[1])*tausID_t[ind,revBlock]);
         probs[1] = 1-probs[2];
         
-        // choice[ind,tr]-1 ~ bernoulli(probs[2]); 
-        // pred_error = reward[ind,tr]  - est_values[choice[ind,tr]];
-        // est_values[choice[ind,tr]] += alphasID_t[ind]*pred_error;
-        
         if(block_r[totTrial,2]==1) { // if the second option yields reward
           // use probability of second option to calculate loglikelihood of success
           y[ind,totTrial] ~ bernoulli(probs[2]); 
