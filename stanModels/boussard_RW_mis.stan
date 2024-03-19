@@ -134,17 +134,13 @@ generated quantities {
   vector[2] probs_p;
   vector[2] est_values_p;
   array[N] real log_lik;
-  array[N,Tr] int y_pred;
-
-
+  array[N, TotTr] int y_pred = -1;
   // Set all posterior predictions to 0 (avoids NULL values)
-  for (ind in 1:N) {
-    for (tr in 1:Tr) {
-      y_pred[ind, tr] = -1;
-    }
-  }
+
 
   for (ind in 1:N){
+    // est_values_p = initV;
+    // Set the initial values according to the provided initial probability
     est_values_p = initV;
     log_lik[ind] = 0;
     for (tr in 1:Tr){
